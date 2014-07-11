@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sstream>
 
 #define MAX_CONNECTIONS 100
 #define HOST_NAME_SIZE 256
@@ -79,6 +80,30 @@ int rpcInit() {
 	}
 
 	return SUCCESS;
+}
+
+int rpcRegister(char *name, int *argTypes, skeleton f){
+	//insert into local db
+	//create register msg
+	String msg = createRegisterMsg(serverPort, name, argTypes);
+	//send register msg
+	int len = strlen(msg.c_str())+1;
+	send(binderSocket, msg.c_str(), len, 0);
+
+	//listen for acknlowedgment
+	char reply[10];
+	recv(binderSocket, reply, len,0);
+	stringstream ss;
+	ss<<reply;
+	int returnCode;
+	ss>>returnCode;
+	if(returnCode == 0){
+		//success
+	}
+	else{
+		//error?
+	}
+
 }
 
 
