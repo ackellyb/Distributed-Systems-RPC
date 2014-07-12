@@ -111,10 +111,10 @@ int rpcInit() {
 	if (serverPort <= 0) {
 		return -1;
 	}
-	gethostname(address, HOST_NAME_SIZE);
-	if (address == NULL) {
-		return -1;
-	}
+//	gethostname(address, HOST_NAME_SIZE);
+//	if (address == NULL) {
+//		return -1;
+//	}
 
 	return SUCCESS;
 }
@@ -124,6 +124,7 @@ int rpcRegister(char *name, int *argTypes, skeleton f){
 	stringstream ss;
 	ss<<name;
 
+	//check if it has already been registered if so dont bind...
 	//create register msg
 	string msg = createRegisterMsg(serverPort, name, argTypes);
 	//send register msg
@@ -162,17 +163,72 @@ int rpcRegister(char *name, int *argTypes, skeleton f){
 
 int rpcCall(char* name, int* argTypes, void** args){
 	//connect to binder
+	char * address = getenv("BINDER_ADDRESS");
+		char * port = getenv("BINDER_PORT");
+		int retVal;
+
+		if (address == NULL || port == NULL) {
+			return -1;
+		}
+		//Connecting to binder
+		int cBinderSocket = socket(AF_INET , SOCK_STREAM , 0);
+		if (cBinderSocket == -1) {
+			return -1;
+		}
+
+		struct addrinfo hints, *res;
+		memset(&hints, 0, sizeof hints);
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		getaddrinfo(address, port, &hints, &res);
+		retVal = connect(cBinderSocket, res->ai_addr, res->ai_addrlen);
+		if (retVal == -1) {
+			return -1;
+		}
+
 //loc_request to binder
 	string msg = createLocRequestMsg(name, argTypes);
+	int len = strlen(msg.c_str())+1;
+	send(cBinderSocket, msg.c_str(), len, 0);
 
-//execute to server
+	// recieve msg
+	char incommingMsg[MAX_SIZE];
+	if (recv(cBinderSocket, incommingMsg, MAX_SIZE, 0) <= 0){
+		      close(cBinderSocket);
+		      return -1;
+	}
+	  close(cBinderSocket);
+	  string msgType = strtok(incommingMsg, ",");
+	  if(atoi(msgType.c_str()) == MSG_LOC_SUCCESS){
+		 string serverHostName = strtok(NULL, ",");
+		 string serverPortStr = strtok(NULL, ",");
+		 int serverPort = atoi(serverPortStr.c_str());
+		  //create connection to server
+
+		 //send execute message
+
+		  //wait for response from server
 
 
+	  }else if (atoi(msgType.c_str()) == MSG_LOC_FAILURE){//errored
+		  string errorCode = strtok(NULL, ",");
+		  return atoi(errorCode.c_str());
+	  }else{
+		  //huh?
+		  return  -1;
+	  }
+//MADE IT
+return 0;
 }
 
 int rpcExecute(){
 //listen for execute msgs or terminate msgs may need extra threads
 //execute stuff, send back success/ failure
 
+}
+
+int rpcTerminate(){
+//listen for execute msgs or terminate msgs may need extra threads
+//execute stuff, send back success/ failure
 
 }
