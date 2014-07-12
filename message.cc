@@ -24,6 +24,29 @@ int getpType(int t) {
 	return t & findType >> 16;
 }
 
+string toHex(unsigned char * array, int len) {
+	char * buf = new char[3];
+	stringstream ss;
+	for (int i = len; i >= 0; i--) {
+		snprintf(buf, 3, "%02X", array[i]);
+		ss << buf;
+	}
+	return ss.str();
+}
+
+string dToHex(double x) {
+	unsigned char * array = (unsigned char * ) & x;
+	int len = sizeof(double) - 1;
+	return toHex(array, len);
+}
+
+string flToHex(float x) {
+	unsigned char * array = (unsigned char * ) & x;
+	int len = sizeof(float) - 1;
+	return toHex(array, len);
+}
+
+
 //commas separate args, # separates array elements
 //length, msgCode, hostname, port, name, argTypes
 string createRegisterMsg(int port, char *name, int *argTypes) {
@@ -99,48 +122,56 @@ string createExecuteMsg(int msgType, char *name, int *argTypes, void** args) { /
 			if (ptype == ARG_CHAR) { //char
 				char * array = (char*)args[i];
 				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; i <= innerArrayLength; j++) {
+				for (int j = 0; j <= innerArrayLength; j++) {
 					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_SHORT) { //short
 				short * array = (short*)args[i];
 				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; i <= innerArrayLength; j++) {
+				for (int j = 0; j <= innerArrayLength; j++) {
 					ss << array[j] << ";";
 				}
 			} else if (ptype == ARG_INT) { //int
 				int * array = (int*)args[i];
 				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; i <= innerArrayLength; j++) {
+				for (int j = 0; j <= innerArrayLength; j++) {
 					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_LONG) { //long
 				long * array = (long*)args[i];
 				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; i <= innerArrayLength; j++) {
+				for (int j = 0; j <= innerArrayLength; j++) {
 					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_DOUBLE) { //double
 				double * array = (double*)args[i];
 				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; i <= innerArrayLength; j++) {
-					ss << array[j] << ";";
+				for (int j = 0; j <= innerArrayLength; j++) {
+					ss << dToHex((double)array[j]) << ";";
 				}
 
 			} else if (ptype == ARG_FLOAT) { //float
 				float * array = (float*)args[i];
 				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; i <= innerArrayLength; j++) {
-					ss << array[j] << ";";
+				for (int j = 0; j <= innerArrayLength; j++) {
+					ss << flToHex((float)array[j]) << ";";
 				}
 
 			}
 			ss << "#";
 		} else {
-			ss << args[i] << "#";
+			if (ptype == ARG_DOUBLE) {
+				double * arg = (double *) args[i];
+				ss << dToHex(*arg) << ";";
+			} else if (ptype == ARG_FLOAT) {
+				float * arg = (float *) args[i];
+				ss << flToHex(*arg) << ";";
+			} else {
+				ss << args[i] << "#";
+			}
 		}
 	}
 
