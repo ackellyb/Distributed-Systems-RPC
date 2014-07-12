@@ -133,13 +133,14 @@ int rpcRegister(char *name, int *argTypes, skeleton f){
 	//listen for acknlowedgment
 	char reply[10];
 	recv(binderSocket, reply, len,0);
-	ss << reply;
-	int returnCode;
-	ss >> returnCode;
-	if(returnCode == 0){
+	string returnCode = strtok(reply, ",");
+//	ss << reply;
+//	int returnCode;
+//	ss >> returnCode;
+	if(atoi(returnCode.c_str()) == MSG_REGISTER_SUCCEESS){
 		//success insert into local db
 		string argTypeStr;
-		ss.str('');
+		ss.str("");
 		ss.str(msg);
 		getline(ss, argTypeStr, ',');//length
 		getline(ss, argTypeStr, ',');//type
@@ -149,10 +150,29 @@ int rpcRegister(char *name, int *argTypes, skeleton f){
 		getline(ss, argTypeStr, ',');//argType
 		string key = getKey(name, argTypeStr);
 		localDb[key] = f;
+		return 0;
 	}
 	else{
 		//error?
+		string errorCode;
+		errorCode = strtok(NULL, ",");
+		return atoi(errorCode.c_str());
 	}
+}
+
+int rpcCall(char* name, int* argTypes, void** args){
+	//connect to binder
+//loc_request to binder
+	string msg = createLocRequestMsg(name, argTypes);
+
+//execute to server
+
 
 }
 
+int rpcExecute(){
+//listen for execute msgs or terminate msgs may need extra threads
+//execute stuff, send back success/ failure
+
+
+}

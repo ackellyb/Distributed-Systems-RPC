@@ -142,17 +142,31 @@ int main(){
 	            				}
 
 	            				//send success
-	            				reply = createSuccessMsg();
+	            				reply = createRegisterSuccessMsg();
 
 	            			}else if(strcmp(command, "loc_request")== 0 ){//loc_request
-	            				//query db
-	            				//find queue
-	            				//remove first
-	            				//add first back into queue
+	            				string nameStr, argTypeStr;
+	            				nameStr = strtok(NULL, ","); //name
+	            				argTypeStr = strtok(NULL, ",");//argTypes
+	            				string key = getKey(nameStr, argTypeStr);
+	            				if(dataBase.count(key)>0){
+	            					queue <pair <string, int>* > *q = dataBase[key];
+	            					pair<string, int> *location = q->front();
+	            					q->pop();
+	            					reply = createLocSuccessMsg(location->first, location->second);
+	            					//put it back into queue
+	            					q->push(location);
+	            				}else{
+	            					//return fail signature doesnt exist
+	            					//temp error code
+	            					reply = createFailureMsg(MSG_LOC_FAILURE,-1);
+	            				}
 	            			}else if(strcmp(command, "terminate")== 0 ){//terminate
 	            				//kill all servers in db
+	            				//not sure how to do this...., need another map to track all registerd servers?
+	            				//or send to all connected?
 	            				//close all sockets
-	            				//return
+//	            				return;
 	            			}
 	            			//send data
 	            			int len = strlen(reply.c_str())+1;
