@@ -6,6 +6,7 @@
  */
 #include <string>
 #include <stdio.h>
+#include "message.h"
 #include <stdlib.h>
 #include <sstream>
 #include <sys/types.h>
@@ -15,13 +16,43 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <cstring>
+#include <map>
+#include <queue>
+#include <utility>
 using namespace std;
 int MAXNUMBER=100;
 int MAX_SIZE = 2^32-1;
 
-message parse_message(char[] msg){
-message
+string getKey(string name, string argTypeStr){
+	stringstream ss;
+	stringstream ssOut;
+	ss.str(argTypeStr);
+	ssOut <<name<<",";
+	string stemp;
+	int withOutLen;
+	int removeLen = 65535 << 16; //16 1s followed by 16 0s
+	while(getline(ss, stemp, '#')){
+		int withLen = atoi(stemp.c_str());
+			//elemenate lower 16 bits
+			withOutLen = withLen & removeLen;
+		if (withLen != withOutLen){
+			//mark as array
+			withOutLen = withOutLen | 1;
+		}
+			ssOut << withLen << "#";
+	}
+	return ssOut.str();
 }
+
+string convertToString(char* c){
+	stringstream ss;
+	string s;
+	ss<c;
+	ss>>s;
+	return s;
+}
+
+
 int get_connection(int s) {
 	int t;
 	if ((t = accept(s,NULL,NULL)) < 0){ /* accept connection if there is one */
@@ -29,6 +60,7 @@ int get_connection(int s) {
 	}
 	return(t);
 }
+
 int main(){
 	int listener = socket(AF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in sockAddress;
@@ -43,6 +75,9 @@ int main(){
 	char address[256];
 	gethostname(address, 256);
 	listen (listener, MAXNUMBER);
+	//lock this shit up later
+	map <string,  queue< pair <string, int> *> * > dataBase;
+
 	cout << "SERVER_ADDRESS " << address <<endl;
 	cout << "SERVER_PORT " << port << endl;
 	fd_set master;
@@ -53,6 +88,7 @@ int main(){
 	    int newfd;
 	    fdmax = listener;
 	    FD_SET(listener, &master);
+	    stringstream ss;
 		while(true){
 			read_fds = master;
 		  	select(fdmax+1, &read_fds, NULL, NULL, NULL);
@@ -73,19 +109,54 @@ int main(){
 	                		FD_CLR(i, &master);
 	            		}else{
 	            			//parse messsage
-	            			message m;
-	            			m = parse_message(incommingMsg);
+	            			 char* length;
+	            			 char* command;
+	            			 length = strtok(incommingMsg, ",");
+	            			 command = strtok(NULL, ",");
+	            			 string stemp;
+//	            			ss.str("");
+//	            			ss<<incommingMsg;
+//	            			string incommingMsgStr = ss.str();
+//	            			m = parse_message(incommingMsg);
+	            			string reply;
 
-	            			if(true){//register
-	            				//insert into db
+	            			if(strcmp(command, "register")== 0 ){//register
+	            				string hostStr, portStr, nameStr, argTypeStr;
+	            				hostStr = strtok(NULL, ","); //host
+	            				portStr = strtok(NULL, ",");//port
+	            				pair<string, int> *location = new pair<string, int>;
+	            				location->first = hostStr;
+	            				location->second = atoi(portStr.c_str());
 
-	            			}else if(false){//loc_request
+	            				nameStr = strtok(NULL, ",");//name
+	            				argTypeStr = strtok(NULL, ",");//argTypes array
+	            				string key = getKey(nameStr, argTypeStr);
+	            				if(dataBase.count(key) >0){//if exists add to existing queue
+	            					queue <pair <string, int>* > *q = dataBase[key];
+	            					q->push(location);
+//	            					dataBase[key] =  q ;
+	            				}else{//create new queue and insert it
+	            					queue <pair <string, int> *>* q = new queue <pair <string, int> *>;
+	            					q->push(location);
+	            					dataBase[key]= q ;
+	            				}
+
+	            				//send success
+	            				reply = createSuccessMsg();
+
+	            			}else if(strcmp(command, "loc_request")== 0 ){//loc_request
 	            				//query db
-	            			}else if(false){//terminate
+	            				//find queue
+	            				//remove first
+	            				//add first back into queue
+	            			}else if(strcmp(command, "terminate")== 0 ){//terminate
 	            				//kill all servers in db
+	            				//close all sockets
+	            				//return
 	            			}
 	            			//send data
-
+	            			int len = strlen(reply.c_str())+1;
+	            			send(i, reply.c_str(), len, 0);
 
 						}//else
 		    		}//data
@@ -93,7 +164,7 @@ int main(){
 			}//for loop
 		}//infinite for loop
 
+
+		//delete db?
 }
-
-
 

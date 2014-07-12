@@ -6,20 +6,57 @@
  */
 
 
-#include <rpc.h>
-#include <err.h>
+#include "rpc.h"
+#include "err.h"
+#include "message.h"
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sstream>
-
+#include <string>
+#include <cstring>
+#include <map>
+using namespace std;
 #define MAX_CONNECTIONS 100
 #define HOST_NAME_SIZE 256
+int MAX_SIZE = 2^32-1;
 
 int binderSocket, clientSocket, serverPort;
 char address[HOST_NAME_SIZE];
+map <string, skeleton> localDb ;
+
+
+string convertToString(char* c){
+	stringstream ss;
+	string s;
+	ss<c;
+	ss>>s;
+	return s;
+}
+string getKey(string name, string argTypeStr){
+	stringstream ss;
+	stringstream ssOut;
+	ss.str(argTypeStr);
+	ssOut <<name<<",";
+	string stemp;
+	int withOutLen;
+	int removeLen = 65535 << 16; //16 1s followed by 16 0s
+	while(getline(ss, stemp, '#')){
+		int withLen = atoi(stemp.c_str());
+			//elemenate lower 16 bits
+			withOutLen = withLen & removeLen;
+		if (withLen != withOutLen){
+			//mark as array
+			withOutLen = withOutLen | 1;
+		}
+			ssOut << withLen << "#";
+	}
+	return ssOut.str();
+}
 
 //Server Function
 int rpcInit() {
@@ -84,8 +121,11 @@ int rpcInit() {
 
 int rpcRegister(char *name, int *argTypes, skeleton f){
 	//insert into local db
+	stringstream ss;
+	ss<<name;
+
 	//create register msg
-	String msg = createRegisterMsg(serverPort, name, argTypes);
+	string msg = createRegisterMsg(serverPort, name, argTypes);
 	//send register msg
 	int len = strlen(msg.c_str())+1;
 	send(binderSocket, msg.c_str(), len, 0);
@@ -93,18 +133,26 @@ int rpcRegister(char *name, int *argTypes, skeleton f){
 	//listen for acknlowedgment
 	char reply[10];
 	recv(binderSocket, reply, len,0);
-	stringstream ss;
-	ss<<reply;
+	ss << reply;
 	int returnCode;
-	ss>>returnCode;
+	ss >> returnCode;
 	if(returnCode == 0){
-		//success
+		//success insert into local db
+		string argTypeStr;
+		ss.str('');
+		ss.str(msg);
+		getline(ss, argTypeStr, ',');//length
+		getline(ss, argTypeStr, ',');//type
+		getline(ss, argTypeStr, ',');//add
+		getline(ss, argTypeStr, ',');//port
+		getline(ss, argTypeStr, ',');//name
+		getline(ss, argTypeStr, ',');//argType
+		string key = getKey(name, argTypeStr);
+		localDb[key] = f;
 	}
 	else{
 		//error?
 	}
 
 }
-
-
 
