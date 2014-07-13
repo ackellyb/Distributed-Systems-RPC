@@ -54,10 +54,12 @@ string createRegisterMsg(int port, char *name, int *argTypes) {
 	gethostname(address, 256);
 	stringstream ss;
 	ss << MSG_REGISTER << "," << address << "," << port << "," << name << ",";
-	int lengthArray = sizeof(argTypes) / sizeof(*argTypes);
-	for (int i = 0; i <= lengthArray; i++) {
+	int i=0;
+	while(argTypes[i]!= 0) {
 		ss << argTypes[i] << "#";
+		i++;
 	}
+	ss << argTypes[i] << "#";
 	string msg;
 	msg = ss.str();
 	//not sure if we want length
@@ -85,10 +87,12 @@ string createRegisterFailtureMsg(int reasonCode) {
 string createLocRequestMsg(char *name, int *argTypes) {
 	stringstream ss;
 	ss << MSG_LOC_REQUEST << "," << name << ",";
-	int lengthArray = sizeof(argTypes) / sizeof(*argTypes);
-	for (int i = 0; i <= lengthArray; i++) {
+	int i=0;
+	while(argTypes[i]!= 0) {
 		ss << argTypes[i] << "#";
+		i++;
 	}
+	ss << argTypes[i] << "#";
 	return ss.str();
 }
 

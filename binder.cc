@@ -21,7 +21,8 @@
 #include <utility>
 using namespace std;
 int MAXNUMBER = 100;
-int MAX_SIZE = 2 ^ 32 - 1;
+//change this wen we know how to...
+int MAX_SIZE = 1000;
 
 class Server {
 	string host;
@@ -48,6 +49,9 @@ public:
 	void incrementCounter() {
 		usedCounter++;
 	}
+	int getCounter() {
+		return usedCounter;
+		}
 
 	bool operator>(const Server &s2) {
 		return usedCounter > s2.usedCounter;
@@ -60,14 +64,8 @@ public:
 	}
 };
 
-//for qsort
-int compareServers(const void* s1, const void* s2) {
-	if (*(Server*) s1 < *(Server*) s2)
-		return -1;
-	if (*(Server*) s1 == *(Server*) s2)
-		return 0;
-	if (*(Server*) s1 > *(Server*) s2)
-		return 1;
+bool compareServers (Server* i,Server* j) {
+	return (*i)<(*j);
 }
 
 string getKey(string name, string argTypeStr) {
@@ -136,6 +134,7 @@ int main() {
 	fdmax = listener;
 	FD_SET(listener, &master);
 	stringstream ss;
+//	cout << "somthin connected " << port << endl;
 	while (true) {
 		read_fds = master;
 		select(fdmax + 1, &read_fds, NULL, NULL, NULL );
@@ -156,29 +155,33 @@ int main() {
 						FD_CLR(i, &master);
 					} else {
 						//parse messsage
+						cout << "somthin connected "  << endl;
+						cout<<incommingMsg<<endl;
 						char* length;
-						char* command;
-						length = strtok(incommingMsg, ",");
-						command = strtok(NULL, ",");
+						char* commandStr;
+//						length = strtok(incommingMsg, ",");
+						commandStr = strtok(incommingMsg, ",");
 						string stemp;
 //	            			ss.str("");
 //	            			ss<<incommingMsg;
 //	            			string incommingMsgStr = ss.str();
 //	            			m = parse_message(incommingMsg);
 						string reply;
-
-						if (atoi(command) == MSG_REGISTER) { //register
+						int command = atoi(commandStr);
+						cout << command << endl;
+						if (command == MSG_REGISTER) { //register
+							cout << "register recieved "  << endl;
 							string hostStr, portStr, nameStr, argTypeStr;
 							hostStr = strtok(NULL, ","); //host
 							portStr = strtok(NULL, ","); //port
 							Server *server;
+							server = new Server(hostStr, atoi(portStr.c_str()));
 							if(servers.count(server->getIdentifier()) > 0){//get same server object if exists
 								server = servers[server->getIdentifier()];
 							}else{//create a new one, add it to servers as well
-								server = new Server(hostStr, atoi(portStr.c_str()));
 								servers[server->getIdentifier()] = server;
 							}
-
+							cout<<"still alive " <<endl;
 							nameStr = strtok(NULL, ","); //name
 							argTypeStr = strtok(NULL, ","); //argTypes array
 							string key = getKey(nameStr, argTypeStr);
@@ -196,7 +199,8 @@ int main() {
 							//when does register fail?
 							reply = createRegisterSuccessMsg();
 
-						} else if (atoi(command) == MSG_LOC_REQUEST) { //loc_request
+						}else if (command == MSG_LOC_REQUEST) { //loc_request
+							cout << "location request recieved "  << endl;
 							string nameStr, argTypeStr;
 							nameStr = strtok(NULL, ","); //name
 							argTypeStr = strtok(NULL, ","); //argTypes
@@ -206,8 +210,9 @@ int main() {
 								//increase counter
 								vector <Server* > *v = dataBase[key];
 								//sort list based on counter
-								sort (v->begin(), v->end());
+								sort (v->begin(), v->end(), comp);
 								Server *s = v->front();
+								s->incrementCounter();
 
 								reply = createLocSuccessMsg(s->getHost(),
 										s->getPort());
@@ -215,9 +220,10 @@ int main() {
 							} else {
 								//return fail signature doesnt exist
 								//temp error code
+
 								reply = createFailureMsg(MSG_LOC_FAILURE, -1);
 							}
-						} else if (atoi(command) == MSG_TERMINATE) {//terminate
+						} else if (command == MSG_TERMINATE) {//terminate
 							//kill all servers in db, send terminate to all of them
 							//not sure how to do this...., need another map to track all registerd servers?
 							//or send to all connected?
@@ -225,6 +231,7 @@ int main() {
 //	            				return;
 						} else {
 							//unsporrted message type?
+							cout << "HUH?! "  << endl;
 //						reply = createFailureMsg(,-1);
 					}
 					//send data
@@ -239,5 +246,4 @@ int main() {
 
 //delete db?
 }
-
 
