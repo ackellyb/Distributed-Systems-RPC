@@ -210,7 +210,7 @@ int main() {
 								//increase counter
 								vector <Server* > *v = dataBase[key];
 								//sort list based on counter
-								sort (v->begin(), v->end(), comp);
+								sort (v->begin(), v->end(), compareServers);
 								Server *s = v->front();
 								s->incrementCounter();
 
