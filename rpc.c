@@ -7,8 +7,8 @@
 
 
 #include "rpc.h"
-#include "err.h"
 #include "message.h"
+#include "err.h"
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -20,7 +20,7 @@
 #include <string>
 #include <cstring>
 #include <map>
-using namespace std;
+#include <iostream>
 #define MAX_CONNECTIONS 100
 #define HOST_NAME_SIZE 256
 int MAX_SIZE = 2^32-1;
@@ -68,7 +68,7 @@ int rpcInit() {
 		return -1;
 	}
 
-
+	cout << "init called"  << endl;
 	//Connecting to binder
 	binderSocket = socket(AF_INET , SOCK_STREAM , 0);
 	if (binderSocket == -1) {
@@ -107,7 +107,7 @@ int rpcInit() {
 	struct sockaddr_in sin;
 	int addrlen = sizeof(sin);
 	getsockname(clientSocket, (struct sockaddr *)&sin, (socklen_t*)&addrlen);
-	int serverPort = ntohs(sin.sin_port);
+	serverPort = ntohs(sin.sin_port);
 	if (serverPort <= 0) {
 		return -1;
 	}
@@ -115,7 +115,7 @@ int rpcInit() {
 //	if (address == NULL) {
 //		return -1;
 //	}
-
+	cout << "init done"  << endl;
 	return SUCCESS;
 }
 
@@ -123,17 +123,20 @@ int rpcRegister(char *name, int *argTypes, skeleton f){
 	//insert into local db
 	stringstream ss;
 	ss<<name;
-
+	cout << "registering"  << endl;
 	//check if it has already been registered if so dont bind...
-	//create register msg
+//	if(){//only send if it is a new signature
+//optional but would be cleaner to do...
+//	}
 	string msg = createRegisterMsg(serverPort, name, argTypes);
 	//send register msg
 	int len = strlen(msg.c_str())+1;
 	send(binderSocket, msg.c_str(), len, 0);
-
+	cout<<"sent: " <<msg<<endl;
 	//listen for acknlowedgment
 	char reply[10];
 	recv(binderSocket, reply, len,0);
+	cout<<"got reply" <<reply<<endl;
 	string returnCode = strtok(reply, ",");
 //	ss << reply;
 //	int returnCode;
@@ -143,13 +146,15 @@ int rpcRegister(char *name, int *argTypes, skeleton f){
 		string argTypeStr;
 		ss.str("");
 		ss.str(msg);
-		getline(ss, argTypeStr, ',');//length
+		cout<<"still alive " <<msg<<endl;
+//		getline(ss, argTypeStr, ',');//length
 		getline(ss, argTypeStr, ',');//type
 		getline(ss, argTypeStr, ',');//add
 		getline(ss, argTypeStr, ',');//port
 		getline(ss, argTypeStr, ',');//name
 		getline(ss, argTypeStr, ',');//argType
 		string key = getKey(name, argTypeStr);
+		cout<<"still alive " <<msg<<endl;
 		localDb[key] = f;
 		return 0;
 	}
@@ -163,6 +168,7 @@ int rpcRegister(char *name, int *argTypes, skeleton f){
 
 int rpcCall(char* name, int* argTypes, void** args){
 	//connect to binder
+	cout << "rpcCall"  << endl;
 	char * address = getenv("BINDER_ADDRESS");
 		char * port = getenv("BINDER_PORT");
 		int retVal;
@@ -199,10 +205,14 @@ int rpcCall(char* name, int* argTypes, void** args){
 	}
 	  close(cBinderSocket);
 	  string msgType = strtok(incommingMsg, ",");
+
 	  if(atoi(msgType.c_str()) == MSG_LOC_SUCCESS){
+		  cout<< "msg_LOC_suc"<<endl;
 		 string serverHostName = strtok(NULL, ",");
 		 string serverPortStr = strtok(NULL, ",");
 		 int serverPort = atoi(serverPortStr.c_str());
+		 cout<< "got back " << serverHostName << " " << serverPort << endl;
+
 		  //create connection to server
 
 		 //send execute message
@@ -211,10 +221,12 @@ int rpcCall(char* name, int* argTypes, void** args){
 
 
 	  }else if (atoi(msgType.c_str()) == MSG_LOC_FAILURE){//errored
+		  cout<< "msg_LOC_fail"<<endl;
 		  string errorCode = strtok(NULL, ",");
 		  return atoi(errorCode.c_str());
 	  }else{
 		  //huh?
+		  cout<< "msg_ huh"<<endl;
 		  return  -1;
 	  }
 //MADE IT
@@ -222,6 +234,7 @@ return 0;
 }
 
 int rpcExecute(){
+	cout << "rpcExecute"  << endl;
 //listen for execute msgs or terminate msgs may need extra threads
 //execute stuff, send back success/ failure
 
@@ -230,5 +243,6 @@ int rpcExecute(){
 int rpcTerminate(){
 //listen for execute msgs or terminate msgs may need extra threads
 //execute stuff, send back success/ failure
-
+	cout << "rpcTerminate"  << endl;
 }
+
