@@ -155,6 +155,9 @@ int main() {
 						FD_CLR(i, &master);
 					} else {
 						//parse messsage
+//						cout<<incommingMsg<<endl;
+//											recv(i, incommingMsg, 10, 0);
+//											cout<<incommingMsg<<endl;
 						cout << "somthin connected "  << endl;
 						cout<<incommingMsg<<endl;
 						char* length;
@@ -246,4 +249,3 @@ int main() {
 
 //delete db?
 }
-
