@@ -210,7 +210,8 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
 	if (locRecvMsg.getType() == MSG_LOC_SUCCESS) {
 		cout << "msg_LOC_suc" << endl;
-		char* serverHostName = strtok(NULL, ",");
+//		locRecvMsg.getMessage()
+		char* serverHostName = strtok(locRecvMsg.getMessage(), ",");
 		char* serverPortStr = strtok(NULL, ",");
 		cout << "got back " << serverHostName << " " << serverPortStr << endl;
 
@@ -228,7 +229,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
 		cout << "send message" << endl;
 		Message serverReceivedMsg;
-		serverReceivedMsg.receiveMessage(serverSocket);
+//		serverReceivedMsg.receiveMessage(serverSocket);
 
 
 	} else if (locRecvMsg.getType() == MSG_LOC_FAILURE) { //errored

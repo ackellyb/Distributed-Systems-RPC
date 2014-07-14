@@ -216,7 +216,7 @@ int main() {
 
 								reply = createLocSuccessMsg(s->getHost(),
 										s->getPort());
-								type = MSG_LOC_REQUEST;
+								type = MSG_LOC_SUCCESS;
 								//put it back into queue
 							} else {
 								//return fail signature doesnt exist
@@ -231,7 +231,8 @@ int main() {
 							//not sure how to do this...., need another map to track all registerd servers?
 							//or send to all connected?
 							//close all sockets
-							reply = createTerminateMsg();
+							Message terminate(MSG_TERMINATE, (char)0);
+
 							int len = strlen(reply.c_str()) + 1;
 							cout << "listener: "<<listener << endl;
 							cout << "Servers connected: "<<fdmax << endl;
@@ -242,7 +243,7 @@ int main() {
 									try {
 										cout << "sending terminate to servers"
 												<< endl;
-										send(i, reply.c_str(), len, 0);
+										terminate.sendMessage(i);
 										cout << "sent" << endl;
 									} catch (...) {
 										//ignore
