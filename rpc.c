@@ -19,6 +19,7 @@
 #include <string>
 #include <cstring>
 #include <map>
+#include <vector>
 #include <iostream>
 #include <pthread.h>
 
@@ -35,6 +36,7 @@ map <string, skeleton> localDb;
 volatile int runningThreads = 0;
 pthread_mutex_t runningLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t localDbLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t printLock = PTHREAD_MUTEX_INITIALIZER;
 
 string convertToString(char* c) {
 	stringstream ss;
@@ -162,7 +164,8 @@ int rpcRegister(char *name, int *argTypes, skeleton f) {
 //optional but would be cleaner to do...
 //	}
 
-	Message sendMsg(MSG_REGISTER, createRegisterMsg(serverPort, name, argTypes));
+	Message
+	sendMsg(MSG_REGISTER, createRegisterMsg(serverPort, name, argTypes));
 	sendMsg.sendMessage(binderSocket);
 
 	cout << "sent: " << sendMsg.getMessage() << endl;
@@ -197,7 +200,8 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	int clientBinderSocket = createSocket(NULL, NULL );
 
 //loc_request to binder
-	Message locMsg(MSG_LOC_REQUEST, createLocRequestMsg(name, argTypes));
+	Message
+	locMsg(MSG_LOC_REQUEST, createLocRequestMsg(name, argTypes));
 	locMsg.sendMessage(clientBinderSocket);
 
 	// recieve msg
@@ -224,13 +228,13 @@ int rpcCall(char* name, int* argTypes, void** args) {
 			return -1;
 		}
 
-		Message serverExecuteMsg(MSG_EXECUTE, createExecuteMsg(name, argTypes,args));
+		Message
+		serverExecuteMsg(MSG_EXECUTE, createExecuteMsg(name, argTypes, args));
 		serverExecuteMsg.sendMessage(serverSocket);
 
 		cout << "send message" << endl;
 		Message serverReceivedMsg;
 //		serverReceivedMsg.receiveMessage(serverSocket);
-
 
 	} else if (locRecvMsg.getType() == MSG_LOC_FAILURE) { //errored
 		cout << "msg_LOC_fail" << endl;
@@ -245,16 +249,27 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	return SUCCESS;
 }
 
+class ThreadArgs {
+public:
+	int cSocket;
+	Message* msg;
+};
+
 void *executeThread(void* arg) {
 //	string msg;
-	char* msg = (char*)arg;
-	stringstream ss;
-	ss << msg;
-	cout<<msg<<endl;
-	string stemp;
-	getline(ss, stemp, ',');
+	ThreadArgs *args = (ThreadArgs *)arg;
+	int cSocket = args->cSocket;
+	Message* msg = args->msg;
+	pthread_mutex_lock(&printLock);
+	cout<<cSocket<<endl;
+	cout<<msg->getMessage()<<endl;
+	pthread_mutex_unlock(&printLock);
+	//parse stuff here
+	//look up in localDb for skeleton(use get key after u parsed out name n argtypes)
+	//run skeleton and reply to client using cSocket
 
-//execute stuff
+	delete msg;
+	delete args;
 	pthread_mutex_lock(&runningLock);
 	runningThreads--;
 	pthread_mutex_unlock(&runningLock);
@@ -268,37 +283,43 @@ int rpcExecute() {
 	if (localDb.empty()) {
 		return -1;
 	}
-
+	vector < pthread_t > threads;
 	while (true) {
 		//accept conections
 		int clientSocket = getConnection(clientListenerSocket);
 		if (clientSocket > 0) {
-			char len[20];
-			recv(clientSocket, len, 20, 0);
-			cout << len << endl;
-			int msgLen = atoi(len);
-			char msg[msgLen];
-			recv(clientSocket, msg, msgLen, 0);
-			cout << msg << endl;
-			cout << "execute recieved" << endl;
+			Message *executeMsg = new Message();
+			executeMsg->receiveMessage(clientSocket);
 
-			string msgType = strtok(msg, ",");
-			if (atoi(msgType.c_str()) == MSG_EXECUTE) {
+			if (executeMsg->getType() == MSG_EXECUTE) {
+				cout << "execute recieved" << endl;
 				//start thread
 				pthread_mutex_lock(&runningLock);
 				runningThreads++;
 				pthread_mutex_unlock(&runningLock);
 				//spawn threads pass msg, and socket
-				string s = "hi";
-				pthread_t thread;
-				pthread_create( &thread, NULL, &executeThread, (void *)s.c_str());
-
-			} else if (atoi(msgType.c_str()) == MSG_TERMINATE) {
-				break;
+				pthread_t t;
+				threads.push_back(t);
+				ThreadArgs *args = new ThreadArgs;
+				args->cSocket = clientSocket;
+				args->msg = executeMsg;
+				pthread_create(&threads[threads.size() - 1], NULL,
+						&executeThread, (void *) args);
+			} else {
+				cout << "unknown msg type" << endl;
 			}
 		}
+		//use select to check for terminate msgs
 	}
+
 	//wait for threads to finish
+	for (int i = 0; i < threads.size(); i++) {
+		/* std::cout << *it; ... */
+		pthread_t t = threads[i];
+		cout << "joining" << endl;
+		pthread_join(t, NULL );
+	}
+	//this might not be necessary anymore
 	while (runningThreads > 0) {
 		sleep(1);
 	}
@@ -316,8 +337,6 @@ int rpcTerminate() {
 	string dummyMsg = "hi";
 	Message terminate(MSG_TERMINATE, dummyMsg);
 	terminate.sendMessage(clientBinderSocket);
-	cout<<"sentTerminate"<<endl;
+	cout << "sentTerminate" << endl;
 }
-
-
 
