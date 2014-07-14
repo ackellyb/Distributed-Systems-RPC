@@ -186,7 +186,9 @@ int rpcRegister(char *name, int *argTypes, skeleton f) {
 		getline(ss, argTypeStr, ','); //argType
 		string key = getKey(name, argTypeStr);
 		cout << "still alive " << sendMsg.getMessage() << endl;
+		pthread_mutex_lock(&localDbLock);
 		localDb[key] = f;
+		pthread_mutex_unlock(&localDbLock);
 		return SUCCESS;
 	} else {
 		//error?
@@ -255,6 +257,11 @@ public:
 	Message* msg;
 };
 
+void printDEBUG(string s){
+	pthread_mutex_lock(&printLock);
+	cout<< s <<endl;
+	pthread_mutex_unlock(&printLock);
+}
 void *executeThread(void* arg) {
 //	string msg;
 	ThreadArgs *args = (ThreadArgs *)arg;
@@ -265,6 +272,25 @@ void *executeThread(void* arg) {
 	cout<<msg->getMessage()<<endl;
 	pthread_mutex_unlock(&printLock);
 	//parse stuff here
+	stringstream ss;
+	ss<<msg->getMessage();
+	string name;
+	getline(ss, name, ',');
+	string argStr;
+	getline(ss, argStr, ',');
+	printDEBUG(name);
+	printDEBUG(argStr);
+//	argStr+= "0#";
+	string key = getKey(name, argStr);
+	pthread_mutex_lock(&localDbLock);
+	skeleton f = localDb[key];
+	pthread_mutex_unlock(&localDbLock);
+	if(f != NULL){
+		printDEBUG("got somthing");
+	}else{
+		printDEBUG("shit");
+	}
+
 	//look up in localDb for skeleton(use get key after u parsed out name n argtypes)
 	//run skeleton and reply to client using cSocket
 
@@ -335,7 +361,8 @@ int rpcTerminate() {
 	int clientBinderSocket = createSocket(NULL, NULL );
 	//send term msg
 	string dummyMsg = "hi";
-	Message terminate(MSG_TERMINATE, dummyMsg);
+	Message
+	terminate(MSG_TERMINATE, dummyMsg);
 	terminate.sendMessage(clientBinderSocket);
 	cout << "sentTerminate" << endl;
 }

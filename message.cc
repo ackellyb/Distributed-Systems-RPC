@@ -146,9 +146,13 @@ string createExecuteMsg(char *name, int *argTypes, void** args) { //args
 	stringstream ss;
 	ss << name << ",";
 	int lengthArray = sizeof(argTypes) / sizeof(*argTypes);
-	for (int i = 0; i <= lengthArray; i++) {
+//	for (int i = 0; i <= lengthArray; i++) {
+	int i=0;
+		while(argTypes[i]!= 0) {
 		ss << argTypes[i] << "#";
+		i++;
 	}
+		ss << argTypes[i] << "#";
 	ss << ", ";
 	for (int i = 0; i <= lengthArray; i++) {
 		int type = argTypes[i];
