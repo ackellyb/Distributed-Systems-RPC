@@ -41,9 +41,9 @@ public:
 	string getHost() {
 		return host;
 	}
-	string getIdentifier(){
+	string getIdentifier() {
 		stringstream ss;
-		ss<<host<<port;
+		ss << host << port;
 		return ss.str();
 	}
 	void incrementCounter() {
@@ -51,7 +51,7 @@ public:
 	}
 	int getCounter() {
 		return usedCounter;
-		}
+	}
 
 	bool operator>(const Server &s2) {
 		return usedCounter > s2.usedCounter;
@@ -64,8 +64,8 @@ public:
 	}
 };
 
-bool compareServers (Server* i,Server* j) {
-	return (*i)<(*j);
+bool compareServers(Server* i, Server* j) {
+	return (*i) < (*j);
 }
 
 string getKey(string name, string argTypeStr) {
@@ -119,16 +119,17 @@ int main() {
 	char address[256];
 	gethostname(address, 256);
 	listen(listener, MAXNUMBER);
-	//lock this shit up later
-	map<string, vector<Server*>  *> dataBase;
+	map<string, vector<Server*> *> dataBase;
 	map<string, Server*> servers;
 
 	cout << "BINDER_ADDRESS " << address << endl;
 	cout << "BINDER_PORT " << port << endl;
 	fd_set master;
 	fd_set read_fds;
+	fd_set server_fds;
 	FD_ZERO(&master);
 	FD_ZERO(&read_fds);
+	FD_ZERO(&server_fds);
 	int fdmax;
 	int newfd;
 	fdmax = listener;
@@ -144,6 +145,7 @@ int main() {
 					//process new connection
 					newfd = get_connection(listener);
 					FD_SET(newfd, &master);
+					FD_SET(newfd, &server_fds);
 					if (newfd > fdmax) {
 						fdmax = newfd;
 					}
@@ -152,14 +154,16 @@ int main() {
 					char incommingMsg[MAX_SIZE];
 					if (recv(i, incommingMsg, MAX_SIZE, 0) <= 0) {
 						close(i);
+						cout<<"removing"<<endl;
 						FD_CLR(i, &master);
+
 					} else {
 						//parse messsage
 //						cout<<incommingMsg<<endl;
 //											recv(i, incommingMsg, 10, 0);
 //											cout<<incommingMsg<<endl;
-						cout << "somthin connected "  << endl;
-						cout<<incommingMsg<<endl;
+						cout << "somthin connected " << endl;
+						cout << incommingMsg << endl;
 						char* length;
 						char* commandStr;
 //						length = strtok(incommingMsg, ",");
@@ -173,28 +177,28 @@ int main() {
 						int command = atoi(commandStr);
 						cout << command << endl;
 						if (command == MSG_REGISTER) { //register
-							cout << "register recieved "  << endl;
+							cout << "register recieved " << endl;
 							string hostStr, portStr, nameStr, argTypeStr;
 							hostStr = strtok(NULL, ","); //host
 							portStr = strtok(NULL, ","); //port
 							Server *server;
 							server = new Server(hostStr, atoi(portStr.c_str()));
-							if(servers.count(server->getIdentifier()) > 0){//get same server object if exists
+							if (servers.count(server->getIdentifier()) > 0) { //get same server object if exists
 								server = servers[server->getIdentifier()];
-							}else{//create a new one, add it to servers as well
+							} else { //create a new one, add it to servers as well
 								servers[server->getIdentifier()] = server;
 							}
-							cout<<"still alive " <<endl;
+							cout << "still alive " << endl;
 							nameStr = strtok(NULL, ","); //name
 							argTypeStr = strtok(NULL, ","); //argTypes array
 							string key = getKey(nameStr, argTypeStr);
 							if (dataBase.count(key) > 0) { //if exists add to existing vector
-								vector<Server* > *v = dataBase[key];
+								vector<Server*> *v = dataBase[key];
 								v->push_back(server);
 								dataBase[key] = v;
 
 							} else { //create new vector and insert it
-								vector<Server* > *v = new vector<Server* >;
+								vector<Server*> *v = new vector<Server*>;
 								v->push_back(server);
 								dataBase[key] = v;
 							}
@@ -202,8 +206,9 @@ int main() {
 							//when does register fail?
 							reply = createRegisterSuccessMsg();
 
-						}else if (command == MSG_LOC_REQUEST) { //loc_request
-							cout << "location request recieved "  << endl;
+						} else if (command == MSG_LOC_REQUEST) { //loc_request
+							cout << "location request recieved " << endl;
+							FD_CLR(i, &server_fds);
 							string nameStr, argTypeStr;
 							nameStr = strtok(NULL, ","); //name
 							argTypeStr = strtok(NULL, ","); //argTypes
@@ -211,9 +216,9 @@ int main() {
 							if (dataBase.count(key) > 0) {
 								//sort list by count
 								//increase counter
-								vector <Server* > *v = dataBase[key];
+								vector<Server*> *v = dataBase[key];
 								//sort list based on counter
-								sort (v->begin(), v->end(), compareServers);
+								sort(v->begin(), v->end(), compareServers);
 								Server *s = v->front();
 								s->incrementCounter();
 
@@ -226,26 +231,52 @@ int main() {
 
 								reply = createFailureMsg(MSG_LOC_FAILURE, -1);
 							}
-						} else if (command == MSG_TERMINATE) {//terminate
+						} else if (command == MSG_TERMINATE) {		//terminate
 							//kill all servers in db, send terminate to all of them
 							//not sure how to do this...., need another map to track all registerd servers?
 							//or send to all connected?
 							//close all sockets
-//	            				return;
+							reply = createTerminateMsg();
+							int len = strlen(reply.c_str()) + 1;
+							cout << "listener: "<<listener << endl;
+							cout << "Servers connected: "<<fdmax << endl;
+							for (int i = 0; i <= fdmax; i++) {
+								//sned terminate to all servers
+								cout << i << endl;
+								if(FD_ISSET(i, &server_fds)) {
+									try {
+										cout << "sending terminate to servers"
+												<< endl;
+										send(i, reply.c_str(), len, 0);
+										cout << "sent" << endl;
+									} catch (...) {
+										//ignore
+										cout << "ignoring error" << endl;
+									}
+									cout << "closing";
+//									close(i);
+									cout << "time" << endl;
+								}
+							}
+							close(listener);
+							//delete db?
+							cout << "all done" << endl;
+							return 0;
 						} else {
 							//unsporrted message type?
-							cout << "HUH?! "  << endl;
+							cout << "HUH?! " << endl;
 //						reply = createFailureMsg(,-1);
-					}
-					//send data
-					int len = strlen(reply.c_str()) + 1;
-					send(i, reply.c_str(), len, 0);
+						}
+						//send data
+						int len = strlen(reply.c_str()) + 1;
+						send(i, reply.c_str(), len, 0);
 
-				}	            				//else
-			}	            				//data
-		}	            				//process readable fd
-	}	            				//for loop
-}	            				//infinite for loop
+					}	            				//else
+				}	            				//data
+			}	            				//process readable fd
+		}	            				//for loop
+	}	            				//infinite for loop
 
 //delete db?
 }
+

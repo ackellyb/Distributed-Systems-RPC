@@ -25,7 +25,9 @@
 #define HOST_NAME_SIZE 256
 int MAX_SIZE = 2 ^ 32 - 1;
 
-int binderSocket, clientSocket, serverPort;
+int binderSocket = -1;
+int clientListenerSocket = -1;
+int serverPort = -1;
 char address[HOST_NAME_SIZE];
 //lock this shit up
 map <string, skeleton> localDb;
@@ -36,7 +38,7 @@ pthread_mutex_t localDbLock = PTHREAD_MUTEX_INITIALIZER;
 string convertToString(char* c) {
 	stringstream ss;
 	string s;
-	ss < c;
+	ss << c;
 	ss >> s;
 	return s;
 }
@@ -61,7 +63,15 @@ string getKey(string name, string argTypeStr) {
 	return ssOut.str();
 }
 
-int createSocket( char* addr, char* prt) {
+int getConnection(int s) {
+	int t;
+	if ((t = accept(s, NULL, NULL )) < 0) { /* accept connection if there is one */
+		return (-1);
+	}
+	return (t);
+}
+
+int createSocket(char* addr, char* prt) {
 	char * address;
 	char * port;
 	if (addr == NULL ) {
@@ -123,8 +133,8 @@ int rpcInit() {
 	}
 
 	//Opening connection for clients
-	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (clientSocket == -1) {
+	clientListenerSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (clientListenerSocket == -1) {
 		return -1;
 	}
 
@@ -132,19 +142,20 @@ int rpcInit() {
 	sockAddress.sin_family = AF_INET;
 	sockAddress.sin_addr.s_addr = INADDR_ANY;
 	sockAddress.sin_port = htons(0);
-	retVal = bind(clientSocket, (struct sockaddr *) &sockAddress,
+	retVal = bind(clientListenerSocket, (struct sockaddr *) &sockAddress,
 			sizeof(sockAddress));
 	if (retVal == -1) {
 		return -1;
 	}
-	retVal = listen(clientSocket, MAX_CONNECTIONS);
+	retVal = listen(clientListenerSocket, MAX_CONNECTIONS);
 	if (retVal == -1) {
 		return -1;
 	}
 
 	struct sockaddr_in sin;
 	int addrlen = sizeof(sin);
-	getsockname(clientSocket, (struct sockaddr *) &sin, (socklen_t*) &addrlen);
+	getsockname(clientListenerSocket, (struct sockaddr *) &sin,
+			(socklen_t*) &addrlen);
 	serverPort = ntohs(sin.sin_port);
 	if (serverPort <= 0) {
 		return -1;
@@ -159,6 +170,9 @@ int rpcInit() {
 
 int rpcRegister(char *name, int *argTypes, skeleton f) {
 	//insert into local db
+	if (binderSocket < 0) {
+		return -1;
+	}
 	stringstream ss;
 	ss << name;
 	cout << "registering" << endl;
@@ -230,11 +244,11 @@ int rpcCall(char* name, int* argTypes, void** args) {
 		cout << "got back " << serverHostName << " " << serverPortStr << endl;
 
 		//create connection to server
-		int serverSocket = createSocket(serverHostName,  serverPortStr);
-		if(serverSocket>0){
-			cout<<"serverup"<<endl;
-		}else{//server is not up
-			cout<<"server down"<<endl;
+		int serverSocket = createSocket(serverHostName, serverPortStr);
+		if (serverSocket > 0) {
+			cout << "serverup" << endl;
+		} else { //server is not up
+			cout << "server down" << endl;
 			return -1;
 		}
 		//send execute message
@@ -254,15 +268,25 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	return SUCCESS;
 }
 
-void *executeThread(void*){
+void *executeThread(void* arg) {
+//	string msg;
+	char* msg = (char*)arg;
+	stringstream ss;
+	ss << msg;
+	cout<<msg<<endl;
+	string stemp;
+	getline(ss, stemp, ',');
+
 //execute stuff
 	pthread_mutex_lock(&runningLock);
 	runningThreads--;
 	pthread_mutex_unlock(&runningLock);
+
 }
 
 int rpcExecute() {
 	cout << "rpcExecute" << endl;
+	//needs to listen to bindersocket for terminate....use select between listner and binder sock?
 
 	if (localDb.empty()) {
 		return -1;
@@ -270,31 +294,38 @@ int rpcExecute() {
 
 	while (true) {
 		//accept conections
+		int clientSocket = getConnection(clientListenerSocket);
+		if (clientSocket > 0) {
+			char len[20];
+			recv(clientSocket, len, 20, 0);
+			cout << len << endl;
+			int msgLen = atoi(len);
+			char msg[msgLen];
+			recv(clientSocket, msg, msgLen, 0);
+			cout << msg << endl;
+			cout << "execute recieved" << endl;
 
-		char len[20];
-		recv(clientSocket, len, 20, 0);
-		cout << len << endl;
-		int msgLen = atoi(len);
-		char msg[msgLen];
-		recv(clientSocket, msg, msgLen, 0);
-		cout << msg << endl;
-		cout << "execute recieved" << endl;
+			string msgType = strtok(msg, ",");
+			if (atoi(msgType.c_str()) == MSG_EXECUTE) {
+				//start thread
+				pthread_mutex_lock(&runningLock);
+				runningThreads++;
+				pthread_mutex_unlock(&runningLock);
+				//spawn threads pass msg, and socket
+				string s = "hi";
+				pthread_t thread;
+				pthread_create( &thread, NULL, &executeThread, (void *)s.c_str());
 
-		string msgType = strtok(msg, ",");
-		if (atoi(msgType.c_str()) == MSG_EXECUTE) {
-			pthread_mutex_lock(&runningLock);
-			runningThreads++;
-			pthread_mutex_unlock(&runningLock);
-			//spawn threads pass msg, and socket
-		} else if (atoi(msgType.c_str()) == MSG_TERMINATE) {
-			break;
+			} else if (atoi(msgType.c_str()) == MSG_TERMINATE) {
+				break;
+			}
 		}
 	}
 	//wait for threads to finish
 	while (runningThreads > 0) {
 		sleep(1);
 	}
-	close(clientSocket);
+	close(clientListenerSocket);
 	return 0;
 
 }
@@ -305,9 +336,10 @@ int rpcTerminate() {
 	cout << "rpcTerminate" << endl;
 	int clientBinderSocket = createSocket(NULL, NULL );
 	//send term msg
-	string termMsg = createTerminate();
+	string termMsg = createTerminateMsg();
 	int len = strlen(termMsg.c_str()) + 1;
 	send(clientBinderSocket, termMsg.c_str(), len, 0);
 }
+
 
 
