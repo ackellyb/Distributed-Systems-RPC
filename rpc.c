@@ -21,6 +21,7 @@
 #include <map>
 #include <iostream>
 #include <pthread.h>
+
 #define MAX_CONNECTIONS 100
 #define HOST_NAME_SIZE 256
 int MAX_SIZE = 2 ^ 32 - 1;
@@ -101,26 +102,9 @@ int rpcInit() {
 	char * port = getenv("BINDER_PORT");
 	int retVal;
 
-	if (address == NULL || port == NULL ) {
-		return -1;
-	}
-
 	cout << "init called" << endl;
 	//Connecting to binder
-	binderSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (binderSocket == -1) {
-		return -1;
-	}
-
-	struct addrinfo hints, *res;
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	getaddrinfo(address, port, &hints, &res);
-	retVal = connect(binderSocket, res->ai_addr, res->ai_addrlen);
-	if (retVal == -1) {
-		return -1;
-	}
+	binderSocket = createSocket(address, port);
 
 	//Opening connection for clients
 	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -149,10 +133,7 @@ int rpcInit() {
 	if (serverPort <= 0) {
 		return -1;
 	}
-//	gethostname(address, HOST_NAME_SIZE);
-//	if (address == NULL) {
-//		return -1;
-//	}
+
 	cout << "init done" << endl;
 	return SUCCESS;
 }
@@ -166,40 +147,33 @@ int rpcRegister(char *name, int *argTypes, skeleton f) {
 //	if(){//only send if it is a new signature
 //optional but would be cleaner to do...
 //	}
-	string msg = createRegisterMsg(serverPort, name, argTypes);
-	//send register msg
-	int len = strlen(msg.c_str()) + 1;
-	send(binderSocket, msg.c_str(), len, 0);
-	cout << "sent: " << msg << endl;
+
+	Message sendMsg(MSG_REGISTER, createRegisterMsg(serverPort, name, argTypes));
+	sendMsg.sendMessage(binderSocket);
+
+	cout << "sent: " << sendMsg.getMessage() << endl;
 	//listen for acknlowedgment
-	char reply[10];
-	recv(binderSocket, reply, len, 0);
-	cout << "got reply" << reply << endl;
-	string returnCode = strtok(reply, ",");
-//	ss << reply;
-//	int returnCode;
-//	ss >> returnCode;
-	if (atoi(returnCode.c_str()) == MSG_REGISTER_SUCCEESS) {
-		//success insert into local db
+	Message recvMsg;
+	recvMsg.receiveMessage(binderSocket);
+	cout << "got reply" << recvMsg.getMessage() << endl;
+
+	if (recvMsg.getType() == MSG_REGISTER_SUCCEESS) {
+
 		string argTypeStr;
 		ss.str("");
-		ss.str(msg);
-		cout << "still alive " << msg << endl;
-//		getline(ss, argTypeStr, ',');//length
-		getline(ss, argTypeStr, ','); //type
+		ss.str(sendMsg.getMessage());
+		cout << "still alive " << sendMsg.getMessage() << endl;
 		getline(ss, argTypeStr, ','); //add
 		getline(ss, argTypeStr, ','); //port
 		getline(ss, argTypeStr, ','); //name
 		getline(ss, argTypeStr, ','); //argType
 		string key = getKey(name, argTypeStr);
-		cout << "still alive " << msg << endl;
+		cout << "still alive " << sendMsg.getMessage() << endl;
 		localDb[key] = f;
 		return SUCCESS;
 	} else {
 		//error?
-		string errorCode;
-		errorCode = strtok(NULL, ",");
-		return atoi(errorCode.c_str());
+		return atoi(recvMsg.getMessage());
 	}
 }
 
@@ -209,24 +183,21 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	int clientBinderSocket = createSocket(NULL, NULL );
 
 //loc_request to binder
-	string msg = createLocRequestMsg(name, argTypes);
-	int len = strlen(msg.c_str()) + 1;
-	send(clientBinderSocket, msg.c_str(), len, 0);
+	Message locMsg(MSG_LOC_REQUEST, createLocRequestMsg(name, argTypes));
+	locMsg.sendMessage(clientBinderSocket);
 
 	// recieve msg
-	char incommingMsg[MAX_SIZE];
-	if (recv(clientBinderSocket, incommingMsg, MAX_SIZE, 0) <= 0) {
+	Message locRecvMsg;
+	if (locRecvMsg.receiveMessage(clientBinderSocket) <= 0) {
 		close(clientBinderSocket);
 		return -1;
 	}
 	close(clientBinderSocket);
-	string msgType = strtok(incommingMsg, ",");
 
-	if (atoi(msgType.c_str()) == MSG_LOC_SUCCESS) {
+	if (locRecvMsg.getType() == MSG_LOC_SUCCESS) {
 		cout << "msg_LOC_suc" << endl;
 		char* serverHostName = strtok(NULL, ",");
 		char* serverPortStr = strtok(NULL, ",");
-//		int serverPort = atoi(serverPortStr.c_str());
 		cout << "got back " << serverHostName << " " << serverPortStr << endl;
 
 		//create connection to server
@@ -237,11 +208,16 @@ int rpcCall(char* name, int* argTypes, void** args) {
 			cout<<"server down"<<endl;
 			return -1;
 		}
-		//send execute message
 
-		//wait for response from server
+		Message serverExecuteMsg(MSG_EXECUTE, createExecuteMsg(name, argTypes,args));
+		serverExecuteMsg.sendMessage(serverSocket);
 
-	} else if (atoi(msgType.c_str()) == MSG_LOC_FAILURE) { //errored
+		cout << "send message" << endl;
+		Message serverReceivedMsg;
+		serverReceivedMsg.receiveMessage(serverSocket);
+
+
+	} else if (locRecvMsg.getType() == MSG_LOC_FAILURE) { //errored
 		cout << "msg_LOC_fail" << endl;
 		string errorCode = strtok(NULL, ",");
 		return atoi(errorCode.c_str());
@@ -264,38 +240,38 @@ void *executeThread(void*){
 int rpcExecute() {
 	cout << "rpcExecute" << endl;
 
-	if (localDb.empty()) {
-		return -1;
-	}
-
-	while (true) {
-		//accept conections
-
-		char len[20];
-		recv(clientSocket, len, 20, 0);
-		cout << len << endl;
-		int msgLen = atoi(len);
-		char msg[msgLen];
-		recv(clientSocket, msg, msgLen, 0);
-		cout << msg << endl;
-		cout << "execute recieved" << endl;
-
-		string msgType = strtok(msg, ",");
-		if (atoi(msgType.c_str()) == MSG_EXECUTE) {
-			pthread_mutex_lock(&runningLock);
-			runningThreads++;
-			pthread_mutex_unlock(&runningLock);
-			//spawn threads pass msg, and socket
-		} else if (atoi(msgType.c_str()) == MSG_TERMINATE) {
-			break;
-		}
-	}
-	//wait for threads to finish
-	while (runningThreads > 0) {
-		sleep(1);
-	}
-	close(clientSocket);
-	return 0;
+//	if (localDb.empty()) {
+//		return -1;
+//	}
+//
+//	while (true) {
+//		//accept conections
+//
+//		char len[20];
+//		recv(clientSocket, len, 20, 0);
+//		cout << len << endl;
+//		int msgLen = atoi(len);
+//		char msg[msgLen];
+//		recv(clientSocket, msg, msgLen, 0);
+//		cout << msg << endl;
+//		cout << "execute recieved" << endl;
+//
+//		string msgType = strtok(msg, ",");
+//		if (atoi(msgType.c_str()) == MSG_EXECUTE) {
+//			pthread_mutex_lock(&runningLock);
+//			runningThreads++;
+//			pthread_mutex_unlock(&runningLock);
+//			//spawn threads pass msg, and socket
+//		} else if (atoi(msgType.c_str()) == MSG_TERMINATE) {
+//			break;
+//		}
+//	}
+//	//wait for threads to finish
+//	while (runningThreads > 0) {
+//		sleep(1);
+//	}
+//	close(clientSocket);
+//	return 0;
 
 }
 
@@ -305,9 +281,8 @@ int rpcTerminate() {
 	cout << "rpcTerminate" << endl;
 	int clientBinderSocket = createSocket(NULL, NULL );
 	//send term msg
-	string termMsg = createTerminate();
-	int len = strlen(termMsg.c_str()) + 1;
-	send(clientBinderSocket, termMsg.c_str(), len, 0);
+	Message terminate(MSG_TERMINATE, (char)0);
+	terminate.sendMessage(clientBinderSocket);
 }
 
 

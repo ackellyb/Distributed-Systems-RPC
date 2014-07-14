@@ -1,10 +1,10 @@
 run:
 	g++ -c rpc.h rpc.c
 	g++ -c message.h message.cc
-	ar -cvq librpc.a rpc.o message.o
+	ar -cvq librpc.a rpc.o message.o 
 	ranlib librpc.a 
 	g++ -c binder.cc
-	g++ -o binder message.o binder.o
+	g++ -o binder message.o binder.o 
 	
 test:
 	g++ -c rpc.h client1.c 
