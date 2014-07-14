@@ -151,41 +151,31 @@ int main() {
 					}
 				} else {
 					//process data
-					char incommingMsg[MAX_SIZE];
-					if (recv(i, incommingMsg, MAX_SIZE, 0) <= 0) {
+					Message recvMsg;
+					if (recvMsg.receiveMessage(i) <= 0) {
 						close(i);
 						cout<<"removing"<<endl;
 						FD_CLR(i, &master);
 
 					} else {
 						//parse messsage
-//						cout<<incommingMsg<<endl;
-//											recv(i, incommingMsg, 10, 0);
-//											cout<<incommingMsg<<endl;
-						cout << "somthin connected " << endl;
-						cout << incommingMsg << endl;
-						char* length;
-						char* commandStr;
-//						length = strtok(incommingMsg, ",");
-						commandStr = strtok(incommingMsg, ",");
-						string stemp;
-//	            			ss.str("");
-//	            			ss<<incommingMsg;
-//	            			string incommingMsgStr = ss.str();
-//	            			m = parse_message(incommingMsg);
+						cout << "somthin connected "  << endl;
+						cout << recvMsg.getMessage() << endl;
 						string reply;
-						int command = atoi(commandStr);
-						cout << command << endl;
-						if (command == MSG_REGISTER) { //register
-							cout << "register recieved " << endl;
+						int type;
+						cout << recvMsg.getType() << endl;
+
+						if (recvMsg.getType()  == MSG_REGISTER) { //register
+
+							cout << "register recieved "  << endl;
 							string hostStr, portStr, nameStr, argTypeStr;
-							hostStr = strtok(NULL, ","); //host
+							hostStr = strtok(recvMsg.getMessage(), ","); //host
 							portStr = strtok(NULL, ","); //port
 							Server *server;
 							server = new Server(hostStr, atoi(portStr.c_str()));
 							if (servers.count(server->getIdentifier()) > 0) { //get same server object if exists
 								server = servers[server->getIdentifier()];
-							} else { //create a new one, add it to servers as well
+							} else {//create a new one, add it to servers as well
 								servers[server->getIdentifier()] = server;
 							}
 							cout << "still alive " << endl;
@@ -204,13 +194,15 @@ int main() {
 							}
 
 							//when does register fail?
-							reply = createRegisterSuccessMsg();
+							reply = createCodeMsg(0);
+							type = MSG_REGISTER_SUCCEESS;
 
-						} else if (command == MSG_LOC_REQUEST) { //loc_request
-							cout << "location request recieved " << endl;
+						} else if (recvMsg.getType() == MSG_LOC_REQUEST) { //loc_request
+							cout << "location request recieved "  << endl;
 							FD_CLR(i, &server_fds);
+
 							string nameStr, argTypeStr;
-							nameStr = strtok(NULL, ","); //name
+							nameStr = strtok(recvMsg.getMessage(), ","); //name
 							argTypeStr = strtok(NULL, ","); //argTypes
 							string key = getKey(nameStr, argTypeStr);
 							if (dataBase.count(key) > 0) {
@@ -224,14 +216,17 @@ int main() {
 
 								reply = createLocSuccessMsg(s->getHost(),
 										s->getPort());
+								type = MSG_LOC_REQUEST;
 								//put it back into queue
 							} else {
 								//return fail signature doesnt exist
 								//temp error code
 
-								reply = createFailureMsg(MSG_LOC_FAILURE, -1);
+								reply = createCodeMsg(-1);
+								type = MSG_LOC_FAILURE;
 							}
-						} else if (command == MSG_TERMINATE) {		//terminate
+
+						} else if (recvMsg.getType() == MSG_TERMINATE) {//terminate
 							//kill all servers in db, send terminate to all of them
 							//not sure how to do this...., need another map to track all registerd servers?
 							//or send to all connected?
@@ -264,12 +259,12 @@ int main() {
 							return 0;
 						} else {
 							//unsporrted message type?
-							cout << "HUH?! " << endl;
-//						reply = createFailureMsg(,-1);
-						}
-						//send data
-						int len = strlen(reply.c_str()) + 1;
-						send(i, reply.c_str(), len, 0);
+							cout << "HUH?! "  << endl;
+//							reply = createFailureMsg(,-1);
+					}
+					//send data
+					Message replyMsg(type, reply);
+					replyMsg.sendMessage(i);
 
 					}	            				//else
 				}	            				//data

@@ -6,12 +6,64 @@
  */
 #include "message.h"
 #include "rpc.h"
-#include <sstream>
-#include <cstring>
-#include <string>
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
+
+
+Message::Message() {
+	// TODO Auto-generated constructor stub
+}
+
+Message::Message(int type, char * message) {
+	this->type = type;
+	this->message = message;
+	this->len = strlen(message)+1;
+}
+
+Message::Message(int type, string message) {
+	this->len = message.length()+1;
+	this->message = new char[this->len];
+	strcpy(this->message, message.c_str());
+	this->type = type;
+}
+
+Message::~Message() {
+	// TODO Auto-generated destructor stub
+}
+
+void Message::sendMessage(int port) {
+	convert.i = this->len;
+	send(port, convert.bits, 32, 0);
+	convert.i = this->type;
+	send(port, convert.bits, 32, 0);
+	send(port, this->message, this->len, 0);
+}
+
+int Message::receiveMessage(int port) {
+	int retVal = recv(port, convert.bits, 32, 0);
+	if (retVal <= 0) {
+		return retVal;
+	}
+	this->len = convert.i;
+	retVal = recv(port, convert.bits, 32, 0);
+	if (retVal <= 0) {
+		return retVal;
+	}
+	this->type = convert.i;
+	this->message = new char[len];
+	retVal = recv(port, this->message, this->len, 0);
+	return retVal;
+}
+
+int Message::getType() {
+	return this->type;
+}
+
+int Message::getLength() {
+	return this->len;
+}
+char * Message::getMessage() {
+	return this->message;
+}
+
 
 bool isArray(int type) {
 	int findArrayLen = 65535; //16 0s followed by 16 1s
@@ -53,40 +105,27 @@ string createRegisterMsg(int port, char *name, int *argTypes) {
 	char address[256];
 	gethostname(address, 256);
 	stringstream ss;
-	ss << MSG_REGISTER << "," << address << "," << port << "," << name << ",";
+	ss << address << "," << port << "," << name << ",";
 	int i=0;
 	while(argTypes[i]!= 0) {
 		ss << argTypes[i] << "#";
 		i++;
 	}
 	ss << argTypes[i] << "#";
-	string msg;
-	msg = ss.str();
-	//not sure if we want length
-//	  int len = strlen(msg.c_str())+1;
-//	  ss.str("");
-//	  ss << len <<"," << msg;
-//	  msg = ss.str();
-//	  cout<< msg << endl;
-	return msg;
+	return ss.str();
 }
 
-string createRegisterSuccessMsg() {
+string createCodeMsg(int code) {
 	stringstream ss;
-	ss << MSG_REGISTER_SUCCEESS;
+	ss << code;
 	return ss.str();
 }
 
 //not sure when this will be used
-string createRegisterFailtureMsg(int reasonCode) {
-	stringstream ss;
-	ss << MSG_REGISTER_FAILURE << "," << reasonCode;
-	return ss.str();
-}
 
 string createLocRequestMsg(char *name, int *argTypes) {
 	stringstream ss;
-	ss << MSG_LOC_REQUEST << "," << name << ",";
+	ss  << name << ",";
 	int i=0;
 	while(argTypes[i]!= 0) {
 		ss << argTypes[i] << "#";
@@ -98,21 +137,14 @@ string createLocRequestMsg(char *name, int *argTypes) {
 
 string createLocSuccessMsg(string host, int port) {
 	stringstream ss;
-	ss << MSG_LOC_SUCCESS << "," << host << "," << port;
-	return ss.str();
-}
-
-string createFailureMsg(int msgType, int reasonCode) {
-	stringstream ss;
-	ss << msgType << "," << reasonCode;
+	ss << host << "," << port;
 	return ss.str();
 }
 
 //msgType will donote weather it is just an execute or an executeSuccess
-//this encoding wont work for decimals :(
-string createExecuteMsg(int msgType, char *name, int *argTypes, void** args) { //args
+string createExecuteMsg(char *name, int *argTypes, void** args) { //args
 	stringstream ss;
-	ss << msgType << "," << name << ",";
+	ss << name << ",";
 	int lengthArray = sizeof(argTypes) / sizeof(*argTypes);
 	for (int i = 0; i <= lengthArray; i++) {
 		ss << argTypes[i] << "#";
@@ -179,17 +211,5 @@ string createExecuteMsg(int msgType, char *name, int *argTypes, void** args) { /
 		}
 	}
 
-	string msg;
-	msg = ss.str();
-	//not using length for now
-//	 	  int len = strlen(msg.c_str())+1;
-//	 	  ss.str("");
-//	 	  ss << len <<"," << msg;
-//	 	  msg = ss.str();
-//	 	  cout<< msg << endl;
-	return msg;
-}
-
-string createTerminate() {
-	return "10";
+	return ss.str();
 }

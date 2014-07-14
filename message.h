@@ -6,6 +6,15 @@
  */
 
 #include <string>
+#include <sys/socket.h>
+#include <sstream>
+#include <cstring>
+#include <string>
+#include <stdio.h>
+#include <stdlib.h>
+#include <iostream>
+
+
 #ifndef MESSAGE_H_
 #define MESSAGE_H_
 
@@ -23,13 +32,34 @@
 #define MSG_TERMINATE     			10
 using namespace std;
 
+union intToByte{
+	int i;
+	char bits[32];
+};
+
+class Message {
+	private:
+		int type;
+		int len;
+		char * message;
+		intToByte convert;
+	public:
+		Message();
+		Message(int type, char * message);
+		Message(int type, string message);
+		virtual ~Message();
+
+		void sendMessage(int port);
+		int receiveMessage(int port);
+		int getType();
+		char * getMessage();
+		int getLength();
+};
 
 string createRegisterMsg(int port, char *name, int *argTypes);
-string createRegisterSuccessMsg();
 string createLocRequestMsg(char *name, int *argTypes);
 string createLocSuccessMsg(string host, int port);
-string createFailureMsg(int msgType, int reasonCode);
-string createExecuteMsg(int msgType, char *name, int *argTypes, void** args);
-string createTerminate();
+string createExecuteMsg(char *name, int *argTypes, void** args);
+string createCodeMsg(int code);
 
 #endif /* MESSAGE_H_ */
