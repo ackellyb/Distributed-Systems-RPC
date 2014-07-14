@@ -234,7 +234,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
 	} else if (locRecvMsg.getType() == MSG_LOC_FAILURE) { //errored
 		cout << "msg_LOC_fail" << endl;
-		string errorCode = strtok(NULL, ",");
+		string errorCode = locRecvMsg.getMessage();
 		return atoi(errorCode.c_str());
 	} else {
 		//huh?
@@ -313,8 +313,10 @@ int rpcTerminate() {
 	cout << "rpcTerminate" << endl;
 	int clientBinderSocket = createSocket(NULL, NULL );
 	//send term msg
-	Message terminate(MSG_TERMINATE, (char)0);
+	string dummyMsg = "hi";
+	Message terminate(MSG_TERMINATE, dummyMsg);
 	terminate.sendMessage(clientBinderSocket);
+	cout<<"sentTerminate"<<endl;
 }
 
 

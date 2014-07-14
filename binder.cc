@@ -231,7 +231,8 @@ int main() {
 							//not sure how to do this...., need another map to track all registerd servers?
 							//or send to all connected?
 							//close all sockets
-							Message terminate(MSG_TERMINATE, (char)0);
+							string dumyMsg= "hi";
+							Message terminate(MSG_TERMINATE, dumyMsg);
 
 							int len = strlen(reply.c_str()) + 1;
 							cout << "listener: "<<listener << endl;
