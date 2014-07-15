@@ -160,10 +160,10 @@ int main() {
 					} else {
 						//parse messsage
 						cout << "somthin connected "  << endl;
-						cout << recvMsg.getMessage() << endl;
+						cout << "Message" << recvMsg.getMessage() << endl;
 						string reply;
 						int type;
-						cout << recvMsg.getType() << endl;
+						cout << recvMsg.getType() <<  " " << recvMsg.getTypeString() << endl;
 
 						if (recvMsg.getType()  == MSG_REGISTER) { //register
 

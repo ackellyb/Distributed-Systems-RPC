@@ -202,8 +202,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	int clientBinderSocket = createSocket(NULL, NULL );
 
 //loc_request to binder
-	Message
-	locMsg(MSG_LOC_REQUEST, createLocRequestMsg(name, argTypes));
+	Message locMsg(MSG_LOC_REQUEST, createLocRequestMsg(name, argTypes));
 	locMsg.sendMessage(clientBinderSocket);
 
 	// recieve msg
@@ -213,6 +212,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 		return -1;
 	}
 	close(clientBinderSocket);
+
 
 	if (locRecvMsg.getType() == MSG_LOC_SUCCESS) {
 		cout << "msg_LOC_suc" << endl;
@@ -230,8 +230,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 			return -1;
 		}
 
-		Message
-		serverExecuteMsg(MSG_EXECUTE, createExecuteMsg(name, argTypes, args));
+		Message serverExecuteMsg(MSG_EXECUTE, createExecuteMsg(name, argTypes, args));
 		serverExecuteMsg.sendMessage(serverSocket);
 
 		cout << "send message" << endl;

@@ -57,6 +57,33 @@ int Message::getType() {
 	return this->type;
 }
 
+string Message::getTypeString() {
+	switch(this->type){
+		case MSG_REGISTER:
+			return "Register";
+		case MSG_REGISTER_SUCCEESS:
+			return "Register Success";
+		case MSG_REGISTER_FAILURE:
+			return "Register failure";
+		case MSG_LOC_REQUEST:
+			return "Location request";
+		case MSG_LOC_SUCCESS:
+			return "Location success";
+		case MSG_LOC_FAILURE:
+			return "Location failure";
+		case MSG_EXECUTE:
+			return "Execute";
+		case MSG_EXECUTE_SUCCESS:
+			return "Execute success";
+		case MSG_EXECUTE_FAILURE:
+			return "Execute failure";
+		case MSG_TERMINATE:
+			return "Terminate";
+		default:
+			return "Message type is not known";
+	}
+}
+
 int Message::getLength() {
 	return this->len;
 }
@@ -65,15 +92,15 @@ char * Message::getMessage() {
 }
 
 
-bool isArray(int type) {
+int getArrayLen(int type) {
 	int findArrayLen = 65535; //16 0s followed by 16 1s
-	int arrayLen = type & arrayLen;
-	return arrayLen > 0;
+	int arrayLen = type & findArrayLen;
+	return arrayLen;
 }
 
 int getpType(int t) {
 	int findType = 255 << 16; //8 0s followed by 8 1s followed by 16 0s
-	return t & findType >> 16;
+	return  (t & findType) >> 16;
 }
 
 string toHex(unsigned char * array, int len) {
@@ -141,76 +168,85 @@ string createLocSuccessMsg(string host, int port) {
 	return ss.str();
 }
 
-//msgType will donote weather it is just an execute or an executeSuccess
+
 string createExecuteMsg(char *name, int *argTypes, void** args) { //args
 	stringstream ss;
 	ss << name << ",";
-	int lengthArray = sizeof(argTypes) / sizeof(*argTypes);
-//	for (int i = 0; i <= lengthArray; i++) {
-	int i=0;
-		while(argTypes[i]!= 0) {
-		ss << argTypes[i] << "#";
-		i++;
+	int lengthArray = 0;
+	while(argTypes[lengthArray]!= 0) {
+		ss << argTypes[lengthArray] << "#";
+		lengthArray++;
 	}
-		ss << argTypes[i] << "#";
-	ss << ", ";
-	for (int i = 0; i <= lengthArray; i++) {
+	ss << argTypes[lengthArray] << "#";
+
+	for (int i = 0; i < lengthArray; i++) {
 		int type = argTypes[i];
 		int ptype = getpType(type);
-		if (isArray(type)) {
+		int arrayLen = getArrayLen(type);
+
+		if (arrayLen > 0) {
 			//cast it into array type...
 			if (ptype == ARG_CHAR) { //char
 				char * array = (char*)args[i];
-				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; j <= innerArrayLength; j++) {
+				for (int j = 0; j < arrayLen; j++) {
 					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_SHORT) { //short
 				short * array = (short*)args[i];
-				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; j <= innerArrayLength; j++) {
+				for (int j = 0; j < arrayLen; j++) {
 					ss << array[j] << ";";
 				}
 			} else if (ptype == ARG_INT) { //int
 				int * array = (int*)args[i];
-				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; j <= innerArrayLength; j++) {
+				for (int j = 0; j < arrayLen; j++) {
 					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_LONG) { //long
 				long * array = (long*)args[i];
-				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; j <= innerArrayLength; j++) {
+				for (int j = 0; j < arrayLen; j++) {
 					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_DOUBLE) { //double
 				double * array = (double*)args[i];
-				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; j <= innerArrayLength; j++) {
+				for (int j = 0; j < arrayLen; j++) {
 					ss << dToHex((double)array[j]) << ";";
 				}
 
 			} else if (ptype == ARG_FLOAT) { //float
 				float * array = (float*)args[i];
-				int innerArrayLength = sizeof(array) / sizeof(*array);
-				for (int j = 0; j <= innerArrayLength; j++) {
+				for (int j = 0; j < arrayLen; j++) {
 					ss << flToHex((float)array[j]) << ";";
 				}
-
+			} else {
+				ss << "NULL" << ";";
 			}
 			ss << "#";
 		} else {
 			if (ptype == ARG_DOUBLE) {
 				double * arg = (double *) args[i];
-				ss << dToHex(*arg) << ";";
+				string msg = dToHex(*arg);
+				ss << msg.c_str() << "#";
 			} else if (ptype == ARG_FLOAT) {
 				float * arg = (float *) args[i];
-				ss << flToHex(*arg) << ";";
+				string msg = flToHex(*arg);
+				ss << msg << "#";
+			} else if(ptype == ARG_LONG) {
+				long * arg = (long*) args[i];
+				ss << *arg << "#";
+			} else if (ptype == ARG_INT) {
+				int * arg = (int*)args[i];
+				ss << *arg << "#";
+			} else if (ptype == ARG_SHORT) {
+				short * arg = (short*)args[i];
+				ss << *arg << "#";
+			} else if (ptype == ARG_CHAR) {
+				char * arg = (char*)args[i];
+				ss << *arg << "#";
 			} else {
-				ss << args[i] << "#";
+				ss << "NULL" << "#";
 			}
 		}
 	}

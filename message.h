@@ -27,9 +27,8 @@
 #define MSG_EXECUTE 		  		7
 #define MSG_EXECUTE_SUCCESS    		8
 #define MSG_EXECUTE_FAILURE   		9
-
-
 #define MSG_TERMINATE     			10
+
 using namespace std;
 
 union intToByte{
@@ -52,6 +51,7 @@ class Message {
 		void sendMessage(int port);
 		int receiveMessage(int port);
 		int getType();
+		string getTypeString();
 		char * getMessage();
 		int getLength();
 };
