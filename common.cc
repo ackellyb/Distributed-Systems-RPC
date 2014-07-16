@@ -82,5 +82,17 @@ string getKey(string name, string argTypeStr) {
 		ssOut << withLen << "#";
 	}
 	return ssOut.str();
+int * vectorToArray(vector<int> vec) {
+	int * array = new int[vec.size()];
+	for (int i = 0; i < vec.size(); i++) {
+		array[i] = vec[i];
+	}
+	return array;
+}
+
+void printDEBUG(string s, pthread_mutex_t lock) {
+	pthread_mutex_lock(&lock);
+	cout << s << endl;
+	pthread_mutex_unlock(&lock);
 }
 

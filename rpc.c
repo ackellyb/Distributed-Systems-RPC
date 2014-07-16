@@ -180,6 +180,116 @@ int rpcRegister(char *name, int *argTypes, skeleton f) {
 	}
 }
 
+void printDEBUG(string s) {
+	printDEBUG(s, printLock);
+}
+
+
+vector<int> parseArgTypes(string argTypeStr) {
+	vector<int> argTypes;
+	stringstream ss(argTypeStr);
+	string argTypeTemp;
+	while (ss.good()) {
+		getline(ss, argTypeTemp, '#');
+		argTypes.push_back(atoi(argTypeTemp.c_str()));
+	}
+	return argTypes;
+}
+
+void ** parseArguments(int * argTypes, int len, string argStr) {
+	stringstream ss(argStr);
+	stringstream debug;
+	string argTemp;
+
+	void ** args = (void **) malloc(len* sizeof(void *));
+	for (int i = 0; i < len; i++) {
+			int type = getpType(argTypes[i]);
+			int arrayLen = getArrayLen(argTypes[i]);
+
+			if (arrayLen > 0) { //is an array
+				if (type == ARG_CHAR) {
+					char * array = new char[arrayLen];
+					for (int j = 0; j < arrayLen; j++) {
+						getline(ss, argTemp, ';');
+						array[j] = argTemp[0];
+					}
+					args[i] = (void*) array;
+				} else if (type == ARG_SHORT) {
+					short * array = new short[arrayLen];
+					for (int j = 0; j < arrayLen; j++) {
+						getline(ss, argTemp, ';');
+						array[j] = (short) atoi(argTemp.c_str());
+					}
+					args[i] = (void*) array;
+				} else if (type == ARG_INT) {
+					int * array = new int[arrayLen];
+					for (int j = 0; j < arrayLen; j++) {
+						getline(ss, argTemp, ';');
+						array[j] = atoi(argTemp.c_str());
+					}
+					args[i] = (void*) array;
+				} else if (type == ARG_LONG) {
+					long * array = new long[arrayLen];
+					for (int j = 0; j < arrayLen; j++) {
+						getline(ss, argTemp, ';');
+						array[j] = atol(argTemp.c_str());
+					}
+					args[i] = (void*) array;
+				} else if (type == ARG_FLOAT) {
+					float * array = new float[arrayLen];
+					for (int j = 0; j < arrayLen; j++) {
+						getline(ss, argTemp, ';');
+						debug.str("");
+						array[j] = toFloat(argTemp);
+						debug << array[j] << "-";
+						printDEBUG(debug.str());
+					}
+					args[i] = (void*) array;
+				} else if (type == ARG_DOUBLE) {
+					double * array = new double[arrayLen];
+					for (int j = 0; j < arrayLen; j++) {
+						getline(ss, argTemp, ';');
+						debug.str("");
+						array[j] = toDouble(argTemp);
+						debug << array[j] << "-";
+						printDEBUG(debug.str());
+					}
+					args[i] = (void*) array;
+				}
+				getline(ss, argTemp, '#');
+				printDEBUG("");
+			} else { //not an array
+				getline(ss, argTemp, '#');
+				debug.str("");
+				if (type == ARG_CHAR) {
+					const char arg = argTemp[0];
+					args[i] = (void*) &arg;
+				} else if (type == ARG_SHORT) {
+					short arg = (short) atoi(argTemp.c_str());
+					args[i] = (void*) &arg;
+				} else if (type == ARG_INT) {
+					int arg = atoi(argTemp.c_str());
+					args[i] = (void*) &arg;
+				} else if (type == ARG_LONG) {
+					long arg = atol(argTemp.c_str());
+					args[i] = (void*) &arg;
+				} else if (type == ARG_FLOAT) {
+					float arg = toFloat(argTemp);
+					debug << arg;
+					printDEBUG(debug.str());
+					args[i] = (void*) &arg;
+				} else if (type == ARG_DOUBLE) {
+					double arg = toDouble(argTemp);
+					debug << arg;
+					printDEBUG(debug.str());
+					args[i] = (void*) &arg;
+				}
+
+			}
+		}
+	return args;
+}
+
 int rpcCall(char* name, int* argTypes, void** args) {
 	//connect to binder
 	cout << "rpcCall" << endl;
@@ -188,8 +298,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 		return -1;
 	}
 //loc_request to binder
-	Message
-	locMsg(MSG_LOC_REQUEST, createLocRequestMsg(name, argTypes));
+	Message locMsg(MSG_LOC_REQUEST, createLocRequestMsg(name, argTypes));
 	locMsg.sendMessage(clientBinderSocket);
 
 	// recieve msg
@@ -225,7 +334,20 @@ int rpcCall(char* name, int* argTypes, void** args) {
 		serverReceivedMsg.receiveMessage(serverSocket);
 		close(serverSocket);
 		if (serverReceivedMsg.getType() == MSG_EXECUTE_SUCCESS) {
-			// Parse stuff I'll do this when i wake up
+			stringstream ss(serverReceivedMsg.getMessage());
+			string name, argTypeStr, argStr;
+			getline(ss, name, ',');
+			getline(ss, argTypeStr, ',');
+			getline(ss, argStr);
+
+			vector<int> argTypesVec = parseArgTypes(argTypeStr);
+//			argTypes = vectorToArray(argTypesVec);
+			int length = argTypesVec.size()-1;
+
+			printDEBUG("what comes next are the variables");
+
+			args = parseArguments(argTypes, length, argStr);
+
 			cout << "msg_EXECUTE_SUCCESS" << endl;
 
 			return 0;
@@ -254,18 +376,6 @@ public:
 	Message* msg;
 };
 
-void printDEBUG(string s) {
-	pthread_mutex_lock(&printLock);
-	cout << s << endl;
-	pthread_mutex_unlock(&printLock);
-}
-
-void printNoLineDEBUG(string s) {
-	pthread_mutex_lock(&printLock);
-	cout << s;
-	pthread_mutex_unlock(&printLock);
-}
-
 void *executeThread(void* tArg) {
 //	string msg;
 	ThreadArgs * tArgs = (ThreadArgs *) tArg;
@@ -277,128 +387,22 @@ void *executeThread(void* tArg) {
 
 	//parse stuff here
 	stringstream ss;
-	stringstream debug;
 	ss << msg->getMessage();
 	string name, argTypeStr, argStr;
-	string argTypeTemp, argTemp;
 	getline(ss, name, ',');
 	getline(ss, argTypeStr, ',');
 	getline(ss, argStr);
 
 	printDEBUG(name);
 
-	vector<int> argTypes;
-	ss.str(argTypeStr);
-	ss.clear();
-	while (ss.good()) {
-		getline(ss, argTypeTemp, '#');
-		argTypes.push_back(atoi(argTypeTemp.c_str()));
-	}
-	int length = argTypes.size() - 1;
-	int * argTypesArray = new
-	int[length+1];
-	for (int i = 0; i <= length; i++) {
-		argTypesArray[i] = argTypes[i];
-	}
-
-	void ** argArray = (void **) malloc(length * sizeof(void *));
-	;
+	vector<int> argTypesVec = parseArgTypes(argTypeStr);
+	int * argTypes = vectorToArray(argTypesVec);
+	int length = argTypesVec.size()-1;
 
 	printDEBUG("what comes next are the variables");
-	ss.str(argStr);
-	ss.clear();
 
-	for (int i = 0; i < length; i++) {
-		int type = getpType(argTypes[i]);
-		int arrayLen = getArrayLen(argTypes[i]);
+	void ** argArray = parseArguments(argTypes, length, argStr);
 
-		if (arrayLen > 0) { //is an array
-			if (type == ARG_CHAR) {
-				char * array = new
-				char[arrayLen];
-				for (int j = 0; j < arrayLen; j++) {
-					getline(ss, argTemp, ';');
-					array[j] = argTemp[0];
-				}
-				argArray[i] = (void*) &array;
-			} else if (type == ARG_SHORT) {
-				short * array = new
-				short[arrayLen];
-				for (int j = 0; j < arrayLen; j++) {
-					getline(ss, argTemp, ';');
-					array[j] = (short) atoi(argTemp.c_str());
-				}
-				argArray[i] = (void*) &array;
-			} else if (type == ARG_INT) {
-				int * array = new
-				int[arrayLen];
-				for (int j = 0; j < arrayLen; j++) {
-					getline(ss, argTemp, ';');
-					array[j] = atoi(argTemp.c_str());
-				}
-				argArray[i] = (void*) &array;
-			} else if (type == ARG_LONG) {
-				long * array = new
-				long[arrayLen];
-				for (int j = 0; j < arrayLen; j++) {
-					getline(ss, argTemp, ';');
-					array[j] = atol(argTemp.c_str());
-				}
-				argArray[i] = (void*) &array;
-			} else if (type == ARG_FLOAT) {
-				float * array = new
-				float[arrayLen];
-				for (int j = 0; j < arrayLen; j++) {
-					getline(ss, argTemp, ';');
-					debug.str("");
-					array[j] = toFloat(argTemp);
-					debug << array[j] << "-";
-					printNoLineDEBUG(debug.str());
-				}
-				argArray[i] = (void*) &array;
-			} else if (type == ARG_DOUBLE) {
-				double * array = new
-				double[arrayLen];
-				for (int j = 0; j < arrayLen; j++) {
-					getline(ss, argTemp, ';');
-					debug.str("");
-					array[j] = toDouble(argTemp);
-					debug << array[j] << "-";
-					printNoLineDEBUG(debug.str());
-				}
-				argArray[i] = (void*) &array;
-			}
-			getline(ss, argTemp, '#');
-			printDEBUG("");
-		} else { //not an array
-			getline(ss, argTemp, '#');
-			debug.str("");
-			if (type == ARG_CHAR) {
-				const char arg = argTemp[0];
-				argArray[i] = (void*) &arg;
-			} else if (type == ARG_SHORT) {
-				short arg = (short) atoi(argTemp.c_str());
-				argArray[i] = (void*) &arg;
-			} else if (type == ARG_INT) {
-				int arg = atoi(argTemp.c_str());
-				argArray[i] = (void*) &arg;
-			} else if (type == ARG_LONG) {
-				long arg = atol(argTemp.c_str());
-				argArray[i] = (void*) &arg;
-			} else if (type == ARG_FLOAT) {
-				float arg = toFloat(argTemp);
-				debug << arg;
-				printDEBUG(debug.str());
-				argArray[i] = (void*) &arg;
-			} else if (type == ARG_DOUBLE) {
-				double arg = toDouble(argTemp);
-				debug << arg;
-				printDEBUG(debug.str());
-				argArray[i] = (void*) &arg;
-			}
-
-		}
-	}
 
 	string key = getKey(name, argTypeStr);
 	pthread_mutex_lock(&localDbLock);
@@ -406,27 +410,26 @@ void *executeThread(void* tArg) {
 	pthread_mutex_unlock(&localDbLock);
 	if (f != NULL ) {
 		printDEBUG("got somthing");
-//		int retVal = f(argTypesArray, argArray);
+		int retVal = f(argTypes, argArray);
 		string skelMsg;
 		int type;
-//		if (retVal == 0) {
-//			char * cstr = new
-//			char[name.length()+1];
-//			strcpy(cstr, name.c_str());
-//			skelMsg = createExecuteMsg(cstr, argTypesArray, argArray);
+		if (retVal == 0) {
+			char * cstr = new char[name.length()+1];
+			strcpy(cstr, name.c_str());
+			skelMsg = createExecuteMsg(cstr, argTypes, argArray);
+			printDEBUG(skelMsg);
 			type = MSG_EXECUTE_SUCCESS;
-//			delete[] cstr;
-//		} else {
-//			skelMsg = createCodeMsg(retVal);
-//			type = MSG_EXECUTE_FAILURE;
-//		}
+			delete[] cstr;
+		} else {
+			skelMsg = createCodeMsg(retVal);
+			type = MSG_EXECUTE_FAILURE;
+		}
 		Message executeSkel( type, skelMsg);
 		executeSkel.sendMessage(cSocket);
 	} else {
 		printDEBUG("shit");
 		string skelMsg = createCodeMsg(-1);
-		Message
-		executeFail(MSG_EXECUTE_FAILURE, skelMsg);
+		Message executeFail(MSG_EXECUTE_FAILURE, skelMsg);
 		executeFail.sendMessage(cSocket);
 	}
 
