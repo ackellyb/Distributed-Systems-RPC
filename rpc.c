@@ -218,7 +218,6 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	}
 	close(clientBinderSocket);
 
-
 	if (locRecvMsg.getType() == MSG_LOC_SUCCESS) {
 		cout << "msg_LOC_suc" << endl;
 //		locRecvMsg.getMessage()
@@ -297,7 +296,7 @@ void *executeThread(void* tArg) {
 	//parse stuff here
 	stringstream ss;
 	stringstream debug;
-	ss<<msg->getMessage();
+	ss << msg->getMessage();
 	string name, argTypeStr, argStr;
 	string argTypeTemp, argTemp;
 	getline(ss, name, ',');
