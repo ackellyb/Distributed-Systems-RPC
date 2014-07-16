@@ -178,7 +178,7 @@ string createExecuteMsg(char *name, int *argTypes, void** args) { //args
 		lengthArray++;
 	}
 	ss << argTypes[lengthArray] << "#";
-
+	ss <<  ",";
 	for (int i = 0; i < lengthArray; i++) {
 		int type = argTypes[i];
 		int ptype = getpType(type);
