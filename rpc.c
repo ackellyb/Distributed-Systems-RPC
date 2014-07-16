@@ -415,7 +415,7 @@ void *executeThread(void* tArg) {
 	pthread_mutex_lock(&localDbLock);
 	skeleton f = localDb[key];
 	pthread_mutex_unlock(&localDbLock);
-	if(f != NULL){
+	if (f != NULL ) {
 		printDEBUG("got somthing");
 		int retVal = f(argTypesArray, argArray);
 		string skelMsg;
