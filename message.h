@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-
+#include <vector>
 
 #ifndef MESSAGE_H_
 #define MESSAGE_H_
@@ -61,5 +61,6 @@ string createLocRequestMsg(char *name, int *argTypes);
 string createLocSuccessMsg(string host, int port);
 string createExecuteMsg(char *name, int *argTypes, void** args);
 string createCodeMsg(int code);
+
 
 #endif /* MESSAGE_H_ */

@@ -13,6 +13,9 @@
 #include <cstring>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <iostream>
+#include <vector>
 
 using namespace std;
 
@@ -23,5 +26,6 @@ string dToHex(double x);
 string flToHex(float x);
 double toDouble(string x);
 float toFloat(string x);
-
+int * vectorToArray(vector<int> vec);
+void printDEBUG(string s, pthread_mutex_t lock);
 #endif /* COMMON_H_ */
