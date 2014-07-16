@@ -10,13 +10,14 @@
 
 
 Message::Message() {
-	// TODO Auto-generated constructor stub
+	this->message = NULL;
 }
 
 Message::Message(int type, char * message) {
 	this->type = type;
-	this->message = message;
 	this->len = strlen(message)+1;
+	this->message = new char[this->len];
+	strcpy(this->message, message);
 }
 
 Message::Message(int type, string message) {
@@ -27,7 +28,9 @@ Message::Message(int type, string message) {
 }
 
 Message::~Message() {
-	// TODO Auto-generated destructor stub
+	if(message != NULL){
+	delete []message;
+	}
 }
 
 void Message::sendMessage(int port) {

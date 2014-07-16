@@ -25,13 +25,14 @@ using namespace std;
 int MAXNUMBER = 100;
 
 class Server {
-	string host;
+	char* host;
 	int port;
 	int usedCounter;
 
 public:
 	Server(string h, int p) {
-		host = h;
+		host = new char[h.length()+1];
+		strcpy(host, h.c_str());
 		port = p;
 		usedCounter = 0;
 	}
@@ -62,18 +63,34 @@ public:
 	bool operator<(const Server &s2) {
 		return usedCounter < s2.usedCounter;
 	}
+	~Server() {
+		delete [] host;
+	}
 };
 
 bool compareServers(Server* i, Server* j) {
 	return (*i) < (*j);
 }
 
-void cleanUpDb(){
+//pass by reference
+void cleanUpDb(map<string, vector<Server*> *> &dataBase, map<string, Server*> &servers ) {
 //iterate through map
-	//iterate through list
-	//delete all servers
-	//delete all lists
-	//delete map
+	vector<Server*> * serverList;
+	cout << "cleaning" << endl;
+	Server* server;
+	for (map<string, vector<Server*> *>::iterator it = dataBase.begin();
+			it != dataBase.end(); ++it) {//delete all vectors
+		serverList = it->second;
+		serverList->clear();
+		cout << "delete vector" << endl;
+		delete serverList;
+		//delete all lists
+	}
+	for (map<string, Server*>::iterator it = servers.begin();
+				it != servers.end(); ++it) {//delete all servers
+		cout << "delete server" << endl;
+		delete it->second;
+	}
 }
 
 string getKey(string name, string argTypeStr) {
@@ -147,23 +164,23 @@ int main() {
 	bool terminated = false;
 
 	while (true) {
-		if(terminated && serverFds.empty()){
+		if (terminated && serverFds.empty()) {
 			close(listener);
-			cleanUpDb();
-			cout<<"all done"<<endl;
+			cleanUpDb(dataBase, servers);
+			cout << "all done" << endl;
 			return 0;
 		}
 		read_fds = master;
 		select(fdmax + 1, &read_fds, NULL, NULL, NULL );
 		for (int i = 0; i <= fdmax; i++) {
 			if (FD_ISSET(i, &read_fds)) {
-				if (i == listener && !terminated) {//if terminated dont accept any new requests
+				if (i == listener && !terminated) { //if terminated dont accept any new requests
 					//process new connection
 					newfd = get_connection(listener);
 					FD_SET(newfd, &master);
 //					FD_SET(newfd, &server_fds);
 					serverFds.insert(newfd);
-					cout<< "new connection: "<<newfd<<endl;
+					cout << "new connection: " << newfd << endl;
 					if (newfd > fdmax) {
 						fdmax = newfd;
 					}
@@ -172,30 +189,33 @@ int main() {
 					Message recvMsg;
 					if (recvMsg.receiveMessage(i) <= 0) {
 						close(i);
-						cout<<"removing "<< i <<endl;
+						cout << "removing " << i << endl;
 						FD_CLR(i, &master);
 //						FD_CLR(i, &server_fds);
 						serverFds.erase(i);
 
 					} else {
 						//parse messsage
-						cout << "somthin connected "  << endl;
+						cout << "somthin connected " << endl;
 						cout << "Message" << recvMsg.getMessage() << endl;
 						string reply;
 						int type;
-						cout << recvMsg.getType() <<  " " << recvMsg.getTypeString() << endl;
+						cout << recvMsg.getType() << " "
+								<< recvMsg.getTypeString() << endl;
 
-						if (recvMsg.getType()  == MSG_REGISTER) { //register
+						if (recvMsg.getType() == MSG_REGISTER) { //register
 
-							cout << "register recieved "  << endl;
+							cout << "register recieved " << endl;
 							string hostStr, portStr, nameStr, argTypeStr;
 							hostStr = strtok(recvMsg.getMessage(), ","); //host
 							portStr = strtok(NULL, ","); //port
 							Server *server;
-							server = new Server(hostStr, atoi(portStr.c_str()));
-							if (servers.count(server->getIdentifier()) > 0) { //get same server object if exists
+							Server serverTemp = Server(hostStr, atoi(portStr.c_str()));
+							if (servers.count(serverTemp.getIdentifier()) > 0) { //get same server object if exists
+//								delete server;
 								server = servers[server->getIdentifier()];
-							} else {//create a new one, add it to servers as well
+							} else { //create a new one, add it to servers as well
+							server = new Server(hostStr, atoi(portStr.c_str()));
 								servers[server->getIdentifier()] = server;
 							}
 							cout << "still alive " << endl;
@@ -218,7 +238,7 @@ int main() {
 							type = MSG_REGISTER_SUCCEESS;
 
 						} else if (recvMsg.getType() == MSG_LOC_REQUEST) { //loc_request
-							cout << "location request recieved "  << endl;
+							cout << "location request recieved " << endl;
 //							FD_CLR(i, &server_fds);
 							serverFds.erase(i);
 							string nameStr, argTypeStr;
@@ -227,7 +247,6 @@ int main() {
 							string key = getKey(nameStr, argTypeStr);
 							if (dataBase.count(key) > 0) {
 								//sort list by count
-								//increase counter
 								vector<Server*> *v = dataBase[key];
 								//sort list based on counter
 								sort(v->begin(), v->end(), compareServers);
@@ -237,7 +256,6 @@ int main() {
 								reply = createLocSuccessMsg(s->getHost(),
 										s->getPort());
 								type = MSG_LOC_SUCCESS;
-								//put it back into queue
 							} else {
 								//return fail signature doesnt exist
 								//temp error code
@@ -253,21 +271,21 @@ int main() {
 							//close all sockets
 //							FD_CLR(i, &server_fds);
 							serverFds.erase(i);
-							string dumyMsg= "hi";
+							string dumyMsg = "hi";
 							Message terminate(MSG_TERMINATE, dumyMsg);
 
 							int len = strlen(reply.c_str()) + 1;
-							cout << "listener: "<<listener << endl;
-							cout << "Servers connected: "<<fdmax << endl;
+							cout << "listener: " << listener << endl;
+							cout << "Servers connected: " << fdmax << endl;
 							for (int j = 0; j <= fdmax; j++) {
 								//sned terminate to all servers
 								cout << j << endl;
-								if(serverFds.find(j) != serverFds.end()) {
+								if (serverFds.find(j) != serverFds.end()) {
 									try {
 										cout << "sending terminate to servers"
 												<< endl;
 										terminate.sendMessage(j);
-										cout << "sent to "<< j << endl;
+										cout << "sent to " << j << endl;
 									} catch (...) {
 										cout << "ignoring error" << endl;
 									}
@@ -276,12 +294,14 @@ int main() {
 							terminated = true;
 						} else {
 							//unsporrted message type?
-							cout << "HUH?! "  << endl;
+							cout << "HUH?! " << endl;
 //							reply = createFailureMsg(,-1);
-					}
-					//send data
-					Message replyMsg(type, reply);
-					replyMsg.sendMessage(i);
+						}
+						//send data
+						if (!terminated) {
+							Message replyMsg(type, reply);
+							replyMsg.sendMessage(i);
+						}
 
 					}	            				//else
 				}	            				//data

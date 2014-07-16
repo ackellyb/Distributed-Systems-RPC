@@ -25,6 +25,7 @@ string toHex(unsigned char * array, int len) {
 		snprintf(buf, 3, "%02X", array[i]);
 		ss << buf;
 	}
+	delete [] buf;
 	return ss.str();
 }
 
