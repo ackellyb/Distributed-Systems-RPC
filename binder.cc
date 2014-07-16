@@ -7,6 +7,7 @@
 #include <string>
 #include <stdio.h>
 #include "message.h"
+#include "common.h"
 #include <stdlib.h>
 #include <sstream>
 #include <sys/types.h>
