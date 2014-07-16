@@ -19,10 +19,9 @@
 #include <map>
 #include <vector>
 #include <utility>
+#include <set>
 using namespace std;
 int MAXNUMBER = 100;
-//change this wen we know how to...
-int MAX_SIZE = 1000;
 
 class Server {
 	string host;
@@ -66,6 +65,14 @@ public:
 
 bool compareServers(Server* i, Server* j) {
 	return (*i) < (*j);
+}
+
+void cleanUpDb(){
+//iterate through map
+	//iterate through list
+	//delete all servers
+	//delete all lists
+	//delete map
 }
 
 string getKey(string name, string argTypeStr) {
@@ -126,26 +133,36 @@ int main() {
 	cout << "BINDER_PORT " << port << endl;
 	fd_set master;
 	fd_set read_fds;
-	fd_set server_fds;
+//	fd_set server_fds;
+	set<int> serverFds;
 	FD_ZERO(&master);
 	FD_ZERO(&read_fds);
-	FD_ZERO(&server_fds);
+//	FD_ZERO(&server_fds);
 	int fdmax;
 	int newfd;
 	fdmax = listener;
 	FD_SET(listener, &master);
 	stringstream ss;
-//	cout << "somthin connected " << port << endl;
+	bool terminated = false;
+
 	while (true) {
+		if(terminated && serverFds.empty()){
+			close(listener);
+			cleanUpDb();
+			cout<<"all done"<<endl;
+			return 0;
+		}
 		read_fds = master;
 		select(fdmax + 1, &read_fds, NULL, NULL, NULL );
 		for (int i = 0; i <= fdmax; i++) {
 			if (FD_ISSET(i, &read_fds)) {
-				if (i == listener) {
+				if (i == listener && !terminated) {//if terminated dont accept any new requests
 					//process new connection
 					newfd = get_connection(listener);
 					FD_SET(newfd, &master);
-					FD_SET(newfd, &server_fds);
+//					FD_SET(newfd, &server_fds);
+					serverFds.insert(newfd);
+					cout<< "new connection: "<<newfd<<endl;
 					if (newfd > fdmax) {
 						fdmax = newfd;
 					}
@@ -154,8 +171,10 @@ int main() {
 					Message recvMsg;
 					if (recvMsg.receiveMessage(i) <= 0) {
 						close(i);
-						cout<<"removing"<<endl;
+						cout<<"removing "<< i <<endl;
 						FD_CLR(i, &master);
+//						FD_CLR(i, &server_fds);
+						serverFds.erase(i);
 
 					} else {
 						//parse messsage
@@ -199,8 +218,8 @@ int main() {
 
 						} else if (recvMsg.getType() == MSG_LOC_REQUEST) { //loc_request
 							cout << "location request recieved "  << endl;
-							FD_CLR(i, &server_fds);
-
+//							FD_CLR(i, &server_fds);
+							serverFds.erase(i);
 							string nameStr, argTypeStr;
 							nameStr = strtok(recvMsg.getMessage(), ","); //name
 							argTypeStr = strtok(NULL, ","); //argTypes
@@ -231,34 +250,29 @@ int main() {
 							//not sure how to do this...., need another map to track all registerd servers?
 							//or send to all connected?
 							//close all sockets
+//							FD_CLR(i, &server_fds);
+							serverFds.erase(i);
 							string dumyMsg= "hi";
 							Message terminate(MSG_TERMINATE, dumyMsg);
 
 							int len = strlen(reply.c_str()) + 1;
 							cout << "listener: "<<listener << endl;
 							cout << "Servers connected: "<<fdmax << endl;
-							for (int i = 0; i <= fdmax; i++) {
+							for (int j = 0; j <= fdmax; j++) {
 								//sned terminate to all servers
-								cout << i << endl;
-								if(FD_ISSET(i, &server_fds)) {
+								cout << j << endl;
+								if(serverFds.find(j) != serverFds.end()) {
 									try {
 										cout << "sending terminate to servers"
 												<< endl;
-										terminate.sendMessage(i);
-										cout << "sent" << endl;
+										terminate.sendMessage(j);
+										cout << "sent to "<< j << endl;
 									} catch (...) {
-										//ignore
 										cout << "ignoring error" << endl;
 									}
-									cout << "closing";
-//									close(i);
-									cout << "time" << endl;
 								}
 							}
-							close(listener);
-							//delete db?
-							cout << "all done" << endl;
-							return 0;
+							terminated = true;
 						} else {
 							//unsporrted message type?
 							cout << "HUH?! "  << endl;
