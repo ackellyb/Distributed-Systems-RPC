@@ -46,26 +46,6 @@ string convertToString(char* c) {
 	ss >> s;
 	return s;
 }
-string getKey(string name, string argTypeStr) {
-	stringstream ss;
-	stringstream ssOut;
-	ss.str(argTypeStr);
-	ssOut << name << ",";
-	string stemp;
-	int withOutLen;
-	int removeLen = 65535 << 16; //16 1s followed by 16 0s
-	while (getline(ss, stemp, '#')) {
-		int withLen = atoi(stemp.c_str());
-		//elemenate lower 16 bits
-		withOutLen = withLen & removeLen;
-		if (withLen != withOutLen) {
-			//mark as array
-			withOutLen = withOutLen | 1;
-		}
-		ssOut << withLen << "#";
-	}
-	return ssOut.str();
-}
 
 int getConnection(int s) {
 	int t;
@@ -243,10 +223,11 @@ int rpcCall(char* name, int* argTypes, void** args) {
 		cout << "send message" << endl;
 		Message serverReceivedMsg;
 		serverReceivedMsg.receiveMessage(serverSocket);
-
+		close(serverSocket);
 		if (serverReceivedMsg.getType() == MSG_EXECUTE_SUCCESS) {
 			// Parse stuff I'll do this when i wake up
 			cout << "msg_EXECUTE_SUCCESS" << endl;
+
 			return 0;
 		} else {
 			cout << "msg_EXECUTE_FAILURE" << endl;
@@ -425,19 +406,20 @@ void *executeThread(void* tArg) {
 	pthread_mutex_unlock(&localDbLock);
 	if (f != NULL ) {
 		printDEBUG("got somthing");
-		int retVal = f(argTypesArray, argArray);
+//		int retVal = f(argTypesArray, argArray);
 		string skelMsg;
 		int type;
-		if (retVal == 0) {
-			char * cstr = new
-			char[name.length()+1];
-			strcpy(cstr, name.c_str());
-			skelMsg = createExecuteMsg(cstr, argTypesArray, argArray);
+//		if (retVal == 0) {
+//			char * cstr = new
+//			char[name.length()+1];
+//			strcpy(cstr, name.c_str());
+//			skelMsg = createExecuteMsg(cstr, argTypesArray, argArray);
 			type = MSG_EXECUTE_SUCCESS;
-		} else {
-			skelMsg = createCodeMsg(retVal);
-			type = MSG_EXECUTE_FAILURE;
-		}
+//			delete[] cstr;
+//		} else {
+//			skelMsg = createCodeMsg(retVal);
+//			type = MSG_EXECUTE_FAILURE;
+//		}
 		Message executeSkel( type, skelMsg);
 		executeSkel.sendMessage(cSocket);
 	} else {
@@ -449,7 +431,6 @@ void *executeThread(void* tArg) {
 	}
 
 	//run skeleton and reply to client using cSocket
-
 	delete msg;
 	delete tArgs;
 	close(cSocket);
@@ -547,6 +528,7 @@ int rpcExecute() {
 //		sleep(1);
 //	}
 	close(clientListenerSocket);
+	close(binderSocket);
 	return 0;
 
 }
@@ -562,5 +544,6 @@ int rpcTerminate() {
 	terminate(MSG_TERMINATE, dummyMsg);
 	terminate.sendMessage(clientBinderSocket);
 	cout << "sentTerminate" << endl;
+	close(clientBinderSocket);
 }
 

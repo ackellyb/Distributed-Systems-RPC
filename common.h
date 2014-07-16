@@ -23,5 +23,6 @@ string dToHex(double x);
 string flToHex(float x);
 double toDouble(string x);
 float toFloat(string x);
+string getKey(string name, string argTypeStr);
 
 #endif /* COMMON_H_ */

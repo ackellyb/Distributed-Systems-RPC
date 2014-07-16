@@ -93,27 +93,6 @@ void cleanUpDb(map<string, vector<Server*> *> &dataBase, map<string, Server*> &s
 	}
 }
 
-string getKey(string name, string argTypeStr) {
-	stringstream ss;
-	stringstream ssOut;
-	ss.str(argTypeStr);
-	ssOut << name << ",";
-	string stemp;
-	int withOutLen;
-	int removeLen = 65535 << 16; //16 1s followed by 16 0s
-	while (getline(ss, stemp, '#')) {
-		int withLen = atoi(stemp.c_str());
-		//elemenate lower 16 bits
-		withOutLen = withLen & removeLen;
-		if (withLen != withOutLen) {
-			//mark as array
-			withOutLen = withOutLen | 1;
-		}
-		ssOut << withLen << "#";
-	}
-	return ssOut.str();
-}
-
 string convertToString(char* c) {
 	stringstream ss;
 	string s;
