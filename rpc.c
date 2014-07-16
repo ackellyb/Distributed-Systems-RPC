@@ -328,7 +328,7 @@ void *executeThread(void* tArg) {
 		int type = getpType(argTypes[i]);
 		int arrayLen = getArrayLen(argTypes[i]);
 
-		if (arrayLen > 0) {
+		if (arrayLen > 0) {//is an array
 			if (type == ARG_CHAR) {
 				char * array = new char[arrayLen];
 				for (int j = 0; j < arrayLen; j++) {
@@ -380,7 +380,7 @@ void *executeThread(void* tArg) {
 			}
 			getline(ss, argTemp, '#');
 			printDEBUG("");
-		} else {
+		} else {//not an array
 			getline(ss, argTemp, '#');
 			debug.str("");
 			if (type == ARG_CHAR) {
@@ -410,8 +410,7 @@ void *executeThread(void* tArg) {
 		}
 	}
 
-
-	string key = getKey(name, argStr);
+	string key = getKey(name, argTypeStr);
 	pthread_mutex_lock(&localDbLock);
 	skeleton f = localDb[key];
 	pthread_mutex_unlock(&localDbLock);
@@ -420,7 +419,7 @@ void *executeThread(void* tArg) {
 		int retVal = f(argTypesArray, argArray);
 		string skelMsg;
 		int type;
-		if (retVal < 0) {
+		if (retVal == 0) {
 			char * cstr = new char[name.length()+1];
 			strcpy(cstr, name.c_str());
 			skelMsg = createExecuteMsg(cstr, argTypesArray, argArray);
