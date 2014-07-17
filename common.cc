@@ -82,6 +82,8 @@ string getKey(string name, string argTypeStr) {
 		ssOut << withLen << "#";
 	}
 	return ssOut.str();
+}
+
 int * vectorToArray(vector<int> vec) {
 	int * array = new int[vec.size()];
 	for (int i = 0; i < vec.size(); i++) {
