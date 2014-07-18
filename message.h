@@ -7,6 +7,7 @@
 
 #include <string>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <sstream>
 #include <cstring>
 #include <string>
@@ -31,17 +32,11 @@
 
 using namespace std;
 
-union intToByte{
-	int i;
-	char bits[32];
-};
-
 class Message {
 	private:
 		int type;
 		int len;
 		char * message;
-		intToByte convert;
 	public:
 		Message();
 		Message(int type, char * message);
