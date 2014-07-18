@@ -26,7 +26,7 @@
 #define MESSAGE_RECEIVE_ERR -11
 #define MESSAGE_CREATION_FAIL -12
 
-#define HOST_NOT_FOUND -13
+#define HOST_NOT_FOUND_ERR -13
 #define BIND_ERR -14
 #define SOCKET_NAME_FAIL -15;
 #define LISTEN_ERR -16;

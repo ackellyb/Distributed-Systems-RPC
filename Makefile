@@ -1,6 +1,6 @@
 run:
 	g++ -c common.h common.cc
-	g++ -c rpc.h rpc.c
+	g++ -c rpc.h  rpcheader.h rpc.c
 	g++ -c message.h message.cc
 	ar -cvq librpc.a rpc.o message.o common.o
 	ranlib librpc.a 

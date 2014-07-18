@@ -17,6 +17,11 @@
 #include <iostream>
 #include <vector>
 #include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 
 using namespace std;
@@ -31,8 +36,8 @@ double toDouble(string x);
 float toFloat(string x);
 string getKey(string name, string argTypeStr);
 int * vectorToArray(vector<int> vec);
-void printDEBUG(string s, pthread_mutex_t lock);
 string convertToString(char* c);
 int getConnection(int s);
+int createSocket(char* addr, char* prt);
 
 #endif /* COMMON_H_ */

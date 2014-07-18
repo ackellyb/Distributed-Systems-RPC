@@ -6,6 +6,7 @@
  */
 
 #include "common.h"
+#include "err.h"
 
 int getArrayLen(int type) {
 	int findArrayLen = 65535; //16 0s followed by 16 1s
@@ -99,11 +100,6 @@ int * vectorToArray(vector<int> vec) {
 	return array;
 }
 
-void printDEBUG(string s, pthread_mutex_t lock) {
-	pthread_mutex_lock(&lock);
-	cout << s << endl;
-	pthread_mutex_unlock(&lock);
-}
 
 string convertToString(char* c) {
 	stringstream ss;
@@ -119,5 +115,42 @@ int getConnection(int s) {
 		return (-1);
 	}
 	return (t);
+}
+
+
+int createSocket(char* addr, char* prt) {
+	char * address;
+	char * port;
+	if (addr == NULL ) {//if no address specified get fron environment
+		address = getenv("BINDER_ADDRESS");
+		port = getenv("BINDER_PORT");
+	} else {
+		address = addr;
+		port = prt;
+	}
+
+	int retVal;
+
+	if (address == NULL || port == NULL ) {
+		return CANT_CREATE_SOCKET_ERR;
+	}
+	//Connecting to binder
+	int soc = socket(AF_INET, SOCK_STREAM, 0);
+	if (soc < 0) {
+		return CANT_CREATE_SOCKET_ERR;
+	}
+
+	struct addrinfo hints, *res;
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	getaddrinfo(address, port, &hints, &res);
+	retVal = connect(soc, res->ai_addr, res->ai_addrlen);
+	if (retVal < 0) {
+		freeaddrinfo(res);
+		return CANT_CONNECT_SOCKET_ERR;
+	}
+	freeaddrinfo(res);
+	return soc;
 }
 

@@ -134,7 +134,7 @@ string createRegisterMsg(int port, char *name, int *argTypes, int * returnVal) {
 	returnVal = new int(0);
 	int retVal = gethostname(address, 256);
 	if (retVal != 0) {
-		returnVal =  new int(HOST_NOT_FOUND);
+		returnVal =  new int(HOST_NOT_FOUND_ERR);
 	}
 	stringstream ss;
 	ss << address << "," << port << "," << name << ",";

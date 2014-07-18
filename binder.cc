@@ -97,7 +97,7 @@ int main() {
 	int addrlen = sizeof(sin);
 	retVal = getsockname(listener, (struct sockaddr *) &sin, (socklen_t*) &addrlen);
 	if (retVal != SUCCESS) {
-		return SOCKET_NAME_FAIL;
+		return SOCKET_ERR;
 	}
 
 	int port = ntohs(sin.sin_port);
@@ -109,7 +109,7 @@ int main() {
 
 	retVal = listen(listener, MAXNUMBER);
 	if(retVal != SUCCESS) {
-		return LISTEN_ERR;
+		return SOCKET_ERR;
 	}
 
 	map<string, vector<Server*> *> dataBase;
