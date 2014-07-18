@@ -59,7 +59,7 @@ class Message {
 string createRegisterMsg(int port, char *name, int *argTypes);
 string createLocRequestMsg(char *name, int *argTypes);
 string createLocSuccessMsg(string host, int port);
-string createExecuteMsg(char *name, int *argTypes, void** args);
+string createExecuteMsg(char *name, int *argTypes, void** args, bool isSuccessMessage);
 string createCodeMsg(int code);
 
 

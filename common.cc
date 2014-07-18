@@ -13,9 +13,16 @@ int getArrayLen(int type) {
 	return arrayLen;
 }
 
-int getpType(int t) {
+int getpType(int type) {
 	int findType = 255 << 16; //8 0s followed by 8 1s followed by 16 0s
-	return  (t & findType) >> 16;
+	return  (type & findType) >> 16;
+}
+
+bool isOnlyOutput(int type) {
+	unsigned int bitMask = 3 << 30;
+	unsigned int IOType = type & bitMask;
+	IOType = IOType >> 30;
+	return IOType == 1;
 }
 
 string toHex(unsigned char * array, int len) {

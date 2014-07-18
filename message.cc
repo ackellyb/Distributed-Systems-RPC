@@ -140,7 +140,7 @@ string createLocSuccessMsg(string host, int port) {
 }
 
 
-string createExecuteMsg(char *name, int *argTypes, void** args) { //args
+string createExecuteMsg(char *name, int *argTypes, void** args, bool isSuccessMessage) { //args
 	stringstream ss;
 	ss << name << ",";
 	int lengthArray = 0;
@@ -153,17 +153,17 @@ string createExecuteMsg(char *name, int *argTypes, void** args) { //args
 	for (int i = 0; i < lengthArray; i++) {
 		int type = argTypes[i];
 		int ptype = getpType(type);
+		bool isOutput = isOnlyOutput(type) && !isSuccessMessage;
 		int arrayLen = getArrayLen(type);
 
-		if (arrayLen > 0) {
+		if (isOutput) {
+			ss << "output#";
+		} else if (arrayLen > 0) {
 			//cast it into array type...
 			if (ptype == ARG_CHAR) { //char
 				char * array = (char*)args[i];
 				for (int j = 0; j < arrayLen; j++) {
-					if(array[j] != NULL)
-						ss << array[j] << ";";
-					else
-						ss << 'd' << ";";
+					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_SHORT) { //short

@@ -20,7 +20,8 @@
 using namespace std;
 
 int getArrayLen(int type);
-int getpType(int t);
+int getpType(int type);
+bool isOnlyOutput(int type);
 string toHex(unsigned char * array, int len);
 string dToHex(double x);
 string flToHex(float x);
