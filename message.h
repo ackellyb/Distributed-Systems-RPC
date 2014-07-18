@@ -7,6 +7,7 @@
 
 #include <string>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <sstream>
 #include <cstring>
 #include <string>
@@ -36,17 +37,11 @@ const char commaHolder = 8;
 const char hashHolder = 127;
 const char semiHolder = 27;
 
-union intToByte{
-	int i;
-	char bits[32];
-};
-
 class Message {
 	private:
 		int type;
 		int len;
 		char * message;
-		intToByte convert;
 	public:
 		Message();
 		Message(int type, char * message);

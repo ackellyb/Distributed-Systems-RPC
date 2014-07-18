@@ -34,24 +34,29 @@ Message::~Message() {
 }
 
 void Message::sendMessage(int port) {
-	convert.i = this->len;
-	send(port, convert.bits, 32, 0);
-	convert.i = this->type;
-	send(port, convert.bits, 32, 0);
+	int32_t lenT = htonl(this->len);
+	int32_t typeT = htonl(this->type);
+	send(port, &lenT, sizeof(int32_t), 0);
+	send(port, &typeT, sizeof(int32_t), 0);
 	send(port, this->message, this->len, 0);
 }
 
 int Message::receiveMessage(int port) {
-	int retVal = recv(port, convert.bits, 32, 0);
+	int32_t lenT = 0;
+	int32_t typeT = 0;
+
+	int retVal = recv(port, &lenT, sizeof(int32_t), 0);
 	if (retVal <= 0) {
 		return retVal;
 	}
-	this->len = convert.i;
-	retVal = recv(port, convert.bits, 32, 0);
+	this->len = ntohl(lenT);
+
+	retVal = recv(port, &typeT, sizeof(int32_t), 0);
 	if (retVal <= 0) {
 		return retVal;
 	}
-	this->type = convert.i;
+	this->type = ntohl(typeT);
+
 	this->message = new char[len];
 	retVal = recv(port, this->message, this->len, 0);
 	return retVal;
