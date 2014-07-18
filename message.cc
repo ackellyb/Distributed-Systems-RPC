@@ -15,21 +15,21 @@ Message::Message() {
 
 Message::Message(int type, char * message) {
 	this->type = type;
-	this->len = strlen(message)+1;
+	this->len = strlen(message) + 1;
 	this->message = new char[this->len];
 	strcpy(this->message, message);
 }
 
 Message::Message(int type, string message) {
-	this->len = message.length()+1;
+	this->len = message.length() + 1;
 	this->message = new char[this->len];
 	strcpy(this->message, message.c_str());
 	this->type = type;
 }
 
 Message::~Message() {
-	if(message != NULL){
-	delete []message;
+	if (message != NULL ) {
+		delete[] message;
 	}
 }
 
@@ -62,29 +62,29 @@ int Message::getType() {
 }
 
 string Message::getTypeString() {
-	switch(this->type){
-		case MSG_REGISTER:
-			return "Register";
-		case MSG_REGISTER_SUCCEESS:
-			return "Register Success";
-		case MSG_REGISTER_FAILURE:
-			return "Register failure";
-		case MSG_LOC_REQUEST:
-			return "Location request";
-		case MSG_LOC_SUCCESS:
-			return "Location success";
-		case MSG_LOC_FAILURE:
-			return "Location failure";
-		case MSG_EXECUTE:
-			return "Execute";
-		case MSG_EXECUTE_SUCCESS:
-			return "Execute success";
-		case MSG_EXECUTE_FAILURE:
-			return "Execute failure";
-		case MSG_TERMINATE:
-			return "Terminate";
-		default:
-			return "Message type is not known";
+	switch (this->type) {
+	case MSG_REGISTER:
+		return "Register";
+	case MSG_REGISTER_SUCCEESS:
+		return "Register Success";
+	case MSG_REGISTER_FAILURE:
+		return "Register failure";
+	case MSG_LOC_REQUEST:
+		return "Location request";
+	case MSG_LOC_SUCCESS:
+		return "Location success";
+	case MSG_LOC_FAILURE:
+		return "Location failure";
+	case MSG_EXECUTE:
+		return "Execute";
+	case MSG_EXECUTE_SUCCESS:
+		return "Execute success";
+	case MSG_EXECUTE_FAILURE:
+		return "Execute failure";
+	case MSG_TERMINATE:
+		return "Terminate";
+	default:
+		return "Message type is not known";
 	}
 }
 
@@ -95,8 +95,6 @@ char * Message::getMessage() {
 	return this->message;
 }
 
-
-
 //commas separate args, # separates array elements
 //length, msgCode, hostname, port, name, argTypes
 string createRegisterMsg(int port, char *name, int *argTypes) {
@@ -104,8 +102,8 @@ string createRegisterMsg(int port, char *name, int *argTypes) {
 	gethostname(address, 256);
 	stringstream ss;
 	ss << address << "," << port << "," << name << ",";
-	int i=0;
-	while(argTypes[i]!= 0) {
+	int i = 0;
+	while (argTypes[i] != 0) {
 		ss << argTypes[i] << "#";
 		i++;
 	}
@@ -123,9 +121,9 @@ string createCodeMsg(int code) {
 
 string createLocRequestMsg(char *name, int *argTypes) {
 	stringstream ss;
-	ss  << name << ",";
-	int i=0;
-	while(argTypes[i]!= 0) {
+	ss << name << ",";
+	int i = 0;
+	while (argTypes[i] != 0) {
 		ss << argTypes[i] << "#";
 		i++;
 	}
@@ -139,17 +137,17 @@ string createLocSuccessMsg(string host, int port) {
 	return ss.str();
 }
 
-
-string createExecuteMsg(char *name, int *argTypes, void** args, bool isSuccessMessage) { //args
+string createExecuteMsg(char *name, int *argTypes, void** args,
+		bool isSuccessMessage) { //args
 	stringstream ss;
 	ss << name << ",";
 	int lengthArray = 0;
-	while(argTypes[lengthArray]!= 0) {
+	while (argTypes[lengthArray] != 0) {
 		ss << argTypes[lengthArray] << "#";
 		lengthArray++;
 	}
 	ss << argTypes[lengthArray] << "#";
-	ss <<  ",";
+	ss << ",";
 	for (int i = 0; i < lengthArray; i++) {
 		int type = argTypes[i];
 		int ptype = getpType(type);
@@ -161,38 +159,46 @@ string createExecuteMsg(char *name, int *argTypes, void** args, bool isSuccessMe
 		} else if (arrayLen > 0) {
 			//cast it into array type...
 			if (ptype == ARG_CHAR) { //char
-				char * array = (char*)args[i];
+				char * array = (char*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
-					ss << array[j] << ";";
+					if (array[j] == ';') {
+						ss<< semiHolder<<";";
+					} else if (array[j] == ',') {
+						ss<< commaHolder<<";";
+					} else if (array[j] == '#') {
+						ss<< hashHolder<<";";
+					} else {
+						ss << array[j] << ";";
+					}
 				}
 
 			} else if (ptype == ARG_SHORT) { //short
-				short * array = (short*)args[i];
+				short * array = (short*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
 					ss << array[j] << ";";
 				}
 			} else if (ptype == ARG_INT) { //int
-				int * array = (int*)args[i];
+				int * array = (int*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
 					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_LONG) { //long
-				long * array = (long*)args[i];
+				long * array = (long*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
 					ss << array[j] << ";";
 				}
 
 			} else if (ptype == ARG_DOUBLE) { //double
-				double * array = (double*)args[i];
+				double * array = (double*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
-					ss << dToHex((double)array[j]) << ";";
+					ss << dToHex((double) array[j]) << ";";
 				}
 
 			} else if (ptype == ARG_FLOAT) { //float
-				float * array = (float*)args[i];
+				float * array = (float*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
-					ss << flToHex((float)array[j]) << ";";
+					ss << flToHex((float) array[j]) << ";";
 				}
 			} else {
 				ss << "NULL" << ";";
@@ -207,18 +213,26 @@ string createExecuteMsg(char *name, int *argTypes, void** args, bool isSuccessMe
 				float * arg = (float *) args[i];
 				string msg = flToHex(*arg);
 				ss << msg << "#";
-			} else if(ptype == ARG_LONG) {
+			} else if (ptype == ARG_LONG) {
 				long * arg = (long*) args[i];
 				ss << *arg << "#";
 			} else if (ptype == ARG_INT) {
-				int * arg = (int*)args[i];
+				int * arg = (int*) args[i];
 				ss << *arg << "#";
 			} else if (ptype == ARG_SHORT) {
-				short * arg = (short*)args[i];
+				short * arg = (short*) args[i];
 				ss << *arg << "#";
 			} else if (ptype == ARG_CHAR) {
-				char * arg = (char*)args[i];
-				ss << *arg << "#";
+				char * arg = (char*) args[i];
+				if (*arg == ';') {
+					ss << semiHolder << "#";
+				} else if (*arg == ',') {
+					ss << commaHolder << "#";
+				} else if (*arg == '#') {
+					ss << hashHolder << "#";
+				} else {
+					ss << *arg << "#";
+				}
 			} else {
 				ss << "NULL" << "#";
 			}

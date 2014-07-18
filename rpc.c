@@ -83,8 +83,10 @@ int createSocket(char* addr, char* prt) {
 	getaddrinfo(address, port, &hints, &res);
 	retVal = connect(soc, res->ai_addr, res->ai_addrlen);
 	if (retVal < 0) {
+		freeaddrinfo(res);
 		return CANT_CONNECT_SOCKET_ERR;
 	}
+	freeaddrinfo(res);
 	return soc;
 }
 
@@ -229,7 +231,15 @@ void ** parseArguments(int * argTypes, int len, string argStr, bool isSuccessMes
 				if (!isOutput) {
 					for (int j = 0; j < arrayLen; j++) {
 						getline(ss, argTemp, ';');
-						array[j] = argTemp[0];
+						if(argTemp[0] == commaHolder){
+							array[j] = ',';
+						}else if(argTemp[0] == hashHolder){
+							array[j] = '#';
+						}else if(argTemp[0] == semiHolder){
+							array[j] = ';';
+						}else{
+							array[j] = argTemp[0];
+						}
 					}
 				}
 				args[i] = (void*) array;
@@ -293,13 +303,19 @@ void ** parseArguments(int * argTypes, int len, string argStr, bool isSuccessMes
 			getline(ss, argTemp, '#');
 			printDEBUG("");
 		} else { //not an array
-			//need to free this later....
 			getline(ss, argTemp, '#');
 			debug.str("");
 			if (type == ARG_CHAR) {
 				char* arg = new char(0);
 				if (!isOutput) {
 					*arg = argTemp[0];
+				}
+				if(*arg == commaHolder){
+					*arg =',';
+				}else if(*arg == hashHolder){
+					*arg ='#';
+				}else if(*arg == semiHolder){
+					*arg =';';
 				}
 				args[i] = (void*) arg;
 			} else if (type == ARG_SHORT) {
@@ -350,7 +366,6 @@ void deleteArgValues(int * argTypes, int len, void** args) {
 			if (type == ARG_CHAR) {
 				char * array = (char*) args[i];
 				delete[] array;
-
 			} else if (type == ARG_SHORT) {
 				short * array = (short*) args[i];
 				delete[] array;
@@ -359,13 +374,13 @@ void deleteArgValues(int * argTypes, int len, void** args) {
 				delete[] array;
 			} else if (type == ARG_LONG) {
 				long * array = (long*) args[i];
-								delete[] array;
+				delete[] array;
 			} else if (type == ARG_FLOAT) {
 				float * array = (float*) args[i];
-								delete[] array;
+				delete[] array;
 			} else if (type == ARG_DOUBLE) {
 				double * array = (double*) args[i];
-								delete[] array;
+				delete[] array;
 			}
 		} else {
 			if (type == ARG_CHAR) {
@@ -389,6 +404,7 @@ void deleteArgValues(int * argTypes, int len, void** args) {
 			}
 		}
 	}
+	delete []args;
 
 }
 void copyArgValues(int * argTypes, int len, void** orgArgs, void** newArgs) {
@@ -616,9 +632,11 @@ void *executeThread(void* tArg) {
 		Message
 		executeFail(MSG_EXECUTE_FAILURE, skelMsg);
 		executeFail.sendMessage(cSocket);
+		deleteArgValues(argTypes, length, argArray);
 	}
 
 //run skeleton and reply to client using cSocket
+delete [] argTypes;
 delete msg;
 delete tArgs;
 close(cSocket);
