@@ -1,0 +1,39 @@
+Distributed-Networks
+====================
+
+Group members:
+Aaron Kelly-Barker,
+Stephen Leung, 20378716
+
+To compile binder and library:
+1. make
+
+dependancies:
+librpc.a depends on rpc.c, message.cc and common.cc
+binder depends on binder.cc, message.cc and common.cc
+To compile server:
+g++ -c rpc.h server.c
+g++ -c server_function_skels.c  
+g++ -c server_functions.c  
+g++ -L. server_functions.o server_function_skels.o server.o -lrpc -pthread -o server
+	
+To compile client:
+g++ -c rpc.h client1.c 
+g++ -L. client1.o  -lrpc -pthread -o client
+
+Alternatively server and client can both be compile using makeFile
+make test
+
+To run binder:
+./binder
+
+To run server:
+1. setenv BINDER_ADDRESS hostname
+2. setenv BINDER_PORT port#
+3. ./server
+
+To run client:
+1. setenv BINDER_ADDRESS hostname
+2. setenv BINDER_PORT port#
+3. ./client
+
