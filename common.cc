@@ -79,7 +79,7 @@ string getKey(string name, string argTypeStr) {
 			//mark as array
 			withOutLen = withOutLen | 1;
 		}
-		ssOut << withLen << "#";
+		ssOut << withOutLen << "#";
 	}
 	return ssOut.str();
 }

@@ -49,7 +49,7 @@ string convertToString(char* c) {
 
 int getConnection(int s) {
 	int t;
-	if ((t = accept(s, NULL, NULL)) < 0) { /* accept connection if there is one */
+	if ((t = accept(s, NULL, NULL )) < 0) { /* accept connection if there is one */
 		return (-1);
 	}
 	return (t);
@@ -58,7 +58,7 @@ int getConnection(int s) {
 int createSocket(char* addr, char* prt) {
 	char * address;
 	char * port;
-	if (addr == NULL) {
+	if (addr == NULL ) {
 		address = getenv("BINDER_ADDRESS");
 		port = getenv("BINDER_PORT");
 	} else {
@@ -68,7 +68,7 @@ int createSocket(char* addr, char* prt) {
 
 	int retVal;
 
-	if (address == NULL || port == NULL) {
+	if (address == NULL || port == NULL ) {
 		return -1;
 	}
 	//Connecting to binder
@@ -301,7 +301,55 @@ void ** parseArguments(int * argTypes, int len, string argStr) {
 	}
 	return args;
 }
+void deleteArgValues(int * argTypes, int len, void** args) {
+	for (int i = 0; i < len; i++) {
+		int type = getpType(argTypes[i]);
+		int arrayLen = getArrayLen(argTypes[i]);
+		if (arrayLen > 0) { //is an array
+			if (type == ARG_CHAR) {
+				char * array = (char*) args[i];
+				delete[] array;
 
+			} else if (type == ARG_SHORT) {
+				short * array = (short*) args[i];
+				delete[] array;
+			} else if (type == ARG_INT) {
+				int * array = (int*) args[i];
+				delete[] array;
+			} else if (type == ARG_LONG) {
+				long * array = (long*) args[i];
+								delete[] array;
+			} else if (type == ARG_FLOAT) {
+				float * array = (float*) args[i];
+								delete[] array;
+			} else if (type == ARG_DOUBLE) {
+				double * array = (double*) args[i];
+								delete[] array;
+			}
+		} else {
+			if (type == ARG_CHAR) {
+				char* arg = (char*) args[i];
+				delete arg;
+			} else if (type == ARG_SHORT) {
+				short* arg = (short*) args[i];
+				delete arg;
+			} else if (type == ARG_INT) {
+				int* arg = (int*) args[i];
+				delete arg;
+			} else if (type == ARG_LONG) {
+				long* arg = (long*) args[i];
+				delete arg;
+			} else if (type == ARG_FLOAT) {
+				float* arg = (float*) args[i];
+				delete arg;
+			} else if (type == ARG_DOUBLE) {
+				double* arg = (double*) args[i];
+				delete arg;
+			}
+		}
+	}
+
+}
 void copyArgValues(int * argTypes, int len, void** orgArgs, void** newArgs) {
 	stringstream debug;
 	for (int i = 0; i < len; i++) {
@@ -370,7 +418,7 @@ void copyArgValues(int * argTypes, int len, void** orgArgs, void** newArgs) {
 int rpcCall(char* name, int* argTypes, void** args) {
 	//connect to binder
 	cout << "rpcCall" << endl;
-	int clientBinderSocket = createSocket(NULL, NULL);
+	int clientBinderSocket = createSocket(NULL, NULL );
 	if (clientBinderSocket < 0) {
 		return -1;
 	}
@@ -408,7 +456,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 		serverExecuteMsg(MSG_EXECUTE, createExecuteMsg(name, argTypes, args));
 		serverExecuteMsg.sendMessage(serverSocket);
 
-		cout << "send message" << endl;
+		cout << "sent message: "<<serverExecuteMsg.getMessage() << endl;
 		Message serverReceivedMsg;
 		serverReceivedMsg.receiveMessage(serverSocket);
 		close(serverSocket);
@@ -433,6 +481,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 			cout << *out << endl;
 			//delete newArgs....
 			copyArgValues(argTypes, length, args, newArgs);
+			deleteArgValues(argTypes, length, newArgs);
 			cout << "msg_EXECUTE_SUCCESS" << endl;
 
 			return 0;
@@ -493,7 +542,7 @@ void *executeThread(void* tArg) {
 	pthread_mutex_lock(&localDbLock);
 	skeleton f = localDb[key];
 	pthread_mutex_unlock(&localDbLock);
-	if (f != NULL) {
+	if (f != NULL ) {
 		printDEBUG("got somthing");
 		int * out = (int*) argArray[0];
 		cout << "before" << (*out) << endl;
@@ -516,7 +565,7 @@ void *executeThread(void* tArg) {
 	}
 	Message executeSkel( type, skelMsg);
 	executeSkel.sendMessage(cSocket);
-	//delete argArray...
+	deleteArgValues(argTypes, length, argArray);
 } else {
 	printDEBUG("shit");
 	string skelMsg = createCodeMsg(-1);
@@ -558,7 +607,7 @@ vector < pthread_t > threads;
 bool terminateFlag = false;
 while (true) {
 	read_fds = master;
-	select(fdmax + 1, &read_fds, NULL, NULL, NULL);
+	select(fdmax + 1, &read_fds, NULL, NULL, NULL );
 	for (int i = 0; i <= fdmax; i++) {
 		if (FD_ISSET(i, &read_fds)) {
 			if (i == clientListenerSocket) {
@@ -616,7 +665,7 @@ for (int i = 0; i < threads.size(); i++) {
 	/* std::cout << *it; ... */
 	pthread_t t = threads[i];
 	cout << "joining" << endl;
-	pthread_join(t, NULL);
+	pthread_join(t, NULL );
 }
 //this might not be necessary anymore
 //	while (runningThreads > 0) {
@@ -632,7 +681,7 @@ int rpcTerminate() {
 //listen for execute msgs or terminate msgs may need extra threads
 //execute stuff, send back success/ failure
 cout << "rpcTerminate" << endl;
-int clientBinderSocket = createSocket(NULL, NULL);
+int clientBinderSocket = createSocket(NULL, NULL );
 //send term msg
 string dummyMsg = "hi";
 Message

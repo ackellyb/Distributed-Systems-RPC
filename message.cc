@@ -160,7 +160,10 @@ string createExecuteMsg(char *name, int *argTypes, void** args) { //args
 			if (ptype == ARG_CHAR) { //char
 				char * array = (char*)args[i];
 				for (int j = 0; j < arrayLen; j++) {
-					ss << array[j] << ";";
+					if(array[j] != NULL)
+						ss << array[j] << ";";
+					else
+						ss << 'd' << ";";
 				}
 
 			} else if (ptype == ARG_SHORT) { //short
