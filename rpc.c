@@ -231,17 +231,10 @@ void ** parseArguments(int * argTypes, int len, string argStr, bool isSuccessMes
 				if (!isOutput) {
 					for (int j = 0; j < arrayLen; j++) {
 						getline(ss, argTemp, ';');
-						if(argTemp[0] == commaHolder){
-							array[j] = ',';
-						}else if(argTemp[0] == hashHolder){
-							array[j] = '#';
-						}else if(argTemp[0] == semiHolder){
-							array[j] = ';';
-						}else{
-							array[j] = argTemp[0];
+						int c = atoi(argTemp.c_str());
+							array[j] = (char)c;
 						}
 					}
-				}
 				args[i] = (void*) array;
 			} else if (type == ARG_SHORT) {
 				short * array = new
@@ -308,14 +301,8 @@ void ** parseArguments(int * argTypes, int len, string argStr, bool isSuccessMes
 			if (type == ARG_CHAR) {
 				char* arg = new char(0);
 				if (!isOutput) {
-					*arg = argTemp[0];
-				}
-				if(*arg == commaHolder){
-					*arg =',';
-				}else if(*arg == hashHolder){
-					*arg ='#';
-				}else if(*arg == semiHolder){
-					*arg =';';
+					int c = atoi(argTemp.c_str());
+					*arg = (char)c;
 				}
 				args[i] = (void*) arg;
 			} else if (type == ARG_SHORT) {

@@ -161,15 +161,7 @@ string createExecuteMsg(char *name, int *argTypes, void** args,
 			if (ptype == ARG_CHAR) { //char
 				char * array = (char*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
-					if (array[j] == ';') {
-						ss<< semiHolder<<";";
-					} else if (array[j] == ',') {
-						ss<< commaHolder<<";";
-					} else if (array[j] == '#') {
-						ss<< hashHolder<<";";
-					} else {
-						ss << array[j] << ";";
-					}
+						ss << (int)array[j] << ";";
 				}
 
 			} else if (ptype == ARG_SHORT) { //short
@@ -224,15 +216,7 @@ string createExecuteMsg(char *name, int *argTypes, void** args,
 				ss << *arg << "#";
 			} else if (ptype == ARG_CHAR) {
 				char * arg = (char*) args[i];
-				if (*arg == ';') {
-					ss << semiHolder << "#";
-				} else if (*arg == ',') {
-					ss << commaHolder << "#";
-				} else if (*arg == '#') {
-					ss << hashHolder << "#";
-				} else {
-					ss << *arg << "#";
-				}
+				ss << (int)(*arg) << "#";
 			} else {
 				ss << "NULL" << "#";
 			}

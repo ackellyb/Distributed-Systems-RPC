@@ -31,11 +31,6 @@
 
 using namespace std;
 
-
-const char commaHolder = 8;
-const char hashHolder = 127;
-const char semiHolder = 27;
-
 union intToByte{
 	int i;
 	char bits[32];
