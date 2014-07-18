@@ -105,3 +105,19 @@ void printDEBUG(string s, pthread_mutex_t lock) {
 	pthread_mutex_unlock(&lock);
 }
 
+string convertToString(char* c) {
+	stringstream ss;
+	string s;
+	ss < c;
+	ss >> s;
+	return s;
+}
+
+int getConnection(int s) {
+	int t;
+	if ((t = accept(s, NULL, NULL )) < 0) { /* accept connection if there is one */
+		return (-1);
+	}
+	return (t);
+}
+

@@ -4,111 +4,82 @@
  *  Created on: Jul 11, 2014
  *      Author: stephen
  */
-#include <string>
-#include <stdio.h>
+
 #include "message.h"
 #include "common.h"
 #include "err.h"
-#include <stdlib.h>
-#include <sstream>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <iostream>
-#include <algorithm>
-#include <netdb.h>
-#include <unistd.h>
-#include <cstring>
-#include <map>
-#include <vector>
-#include <utility>
-#include <set>
-using namespace std;
-int MAXNUMBER = 100;
+#include "binder.h"
 
-class Server {
-	char* host;
-	int port;
-	int usedCounter;
+Server::Server(string h, int p) {
+	host = new char[h.length()+1];
+	strcpy(host, h.c_str());
+	port = p;
+	usedCounter = 0;
+}
 
-public:
-	Server(string h, int p) {
-		host = new char[h.length()+1];
-		strcpy(host, h.c_str());
-		port = p;
-		usedCounter = 0;
-	}
-	int getPort() {
-		return port;
-	}
-	string getHost() {
-		return host;
-	}
-	string getIdentifier() {
-		stringstream ss;
-		ss << host << port;
-		return ss.str();
-	}
-	void incrementCounter() {
-		usedCounter++;
-	}
-	int getCounter() {
-		return usedCounter;
-	}
+Server::~Server() {
+	delete [] host;
+}
 
-	bool operator>(const Server &s2) {
-		return usedCounter > s2.usedCounter;
-	}
-	bool operator==(const Server &s2) {
-		return usedCounter == s2.usedCounter;
-	}
-	bool operator<(const Server &s2) {
-		return usedCounter < s2.usedCounter;
-	}
-	~Server() {
-		delete [] host;
-	}
-};
+int Server::getPort() {
+	return port;
+}
+
+string Server::getHost() {
+	return host;
+}
+
+string Server::getIdentifier() {
+	stringstream ss;
+	ss << host << port;
+	return ss.str();
+}
+
+void Server::incrementCounter() {
+	usedCounter++;
+}
+
+int Server::getCounter() {
+	return usedCounter;
+}
+
+bool Server::operator>(const Server &s2) {
+	return usedCounter > s2.usedCounter;
+}
+
+bool Server::operator==(const Server &s2) {
+	return usedCounter == s2.usedCounter;
+}
+
+bool Server::operator<(const Server &s2) {
+	return usedCounter < s2.usedCounter;
+}
+
 
 bool compareServers(Server* i, Server* j) {
 	return (*i) < (*j);
 }
 
-//pass by reference
+
+
+// Removes all references to servers, and their skeleton associations
 void cleanUpDb(map<string, vector<Server*> *> &dataBase, map<string, Server*> &servers ) {
-//iterate through map
+	//iterate through map
 	vector<Server*> * serverList;
-	cout << "cleaning" << endl;
 	Server* server;
 	for (map<string, vector<Server*> *>::iterator it = dataBase.begin();
 			it != dataBase.end(); ++it) {//delete all vectors
 		serverList = it->second;
 		serverList->clear();
-		cout << "delete vector" << endl;
 		delete serverList;
 		//delete all lists
 	}
 	for (map<string, Server*>::iterator it = servers.begin();
 				it != servers.end(); ++it) {//delete all servers
-		cout << "delete server" << endl;
 		delete it->second;
 	}
 }
 
-string convertToString(char* c) {
-	stringstream ss;
-	string s;
-	ss < c;
-	ss >> s;
-	return s;
-}
-
-int get_connection(int s) {
-	int t;
-	if ((t = accept(s, NULL, NULL )) < 0) { /* accept connection if there is one */
-		return (-1);
-	}
-	return (t);
-}
 
 int main() {
 	int listener = socket(AF_INET, SOCK_STREAM, 0);
@@ -116,28 +87,41 @@ int main() {
 	sockAddress.sin_family = AF_INET;
 	sockAddress.sin_addr.s_addr = INADDR_ANY;
 	sockAddress.sin_port = htons(0);
-	bind(listener, (struct sockaddr *) &sockAddress, sizeof(sockAddress));
+
+	int retVal = bind(listener, (struct sockaddr *) &sockAddress, sizeof(sockAddress));
+	if (retVal != SUCCESS) {
+		return BIND_ERR;
+	}
+
 	struct sockaddr_in sin;
 	int addrlen = sizeof(sin);
-	getsockname(listener, (struct sockaddr *) &sin, (socklen_t*) &addrlen);
+	retVal = getsockname(listener, (struct sockaddr *) &sin, (socklen_t*) &addrlen);
+	if (retVal != SUCCESS) {
+		return SOCKET_NAME_FAIL;
+	}
+
 	int port = ntohs(sin.sin_port);
 	char address[256];
-	gethostname(address, 256);
-	listen(listener, MAXNUMBER);
+	retVal = gethostname(address, 256);
+	if (retVal != SUCCESS) {
+		return HOST_NOT_FOUND;
+	}
+
+	retVal = listen(listener, MAXNUMBER);
+	if(retVal != SUCCESS) {
+		return LISTEN_ERR;
+	}
+
 	map<string, vector<Server*> *> dataBase;
 	map<string, Server*> servers;
 
 	cout << "BINDER_ADDRESS " << address << endl;
 	cout << "BINDER_PORT " << port << endl;
-	fd_set master;
-	fd_set read_fds;
-//	fd_set server_fds;
+	fd_set master, read_fds;
 	set<int> serverFds;
 	FD_ZERO(&master);
 	FD_ZERO(&read_fds);
-//	FD_ZERO(&server_fds);
-	int fdmax;
-	int newfd;
+	int fdmax, newfd;
 	fdmax = listener;
 	FD_SET(listener, &master);
 	stringstream ss;
@@ -147,7 +131,6 @@ int main() {
 		if (terminated && serverFds.empty()) {
 			close(listener);
 			cleanUpDb(dataBase, servers);
-			cout << "all done" << endl;
 			return 0;
 		}
 		read_fds = master;
@@ -156,73 +139,65 @@ int main() {
 			if (FD_ISSET(i, &read_fds)) {
 				if (i == listener && !terminated) { //if terminated dont accept any new requests
 					//process new connection
-					newfd = get_connection(listener);
+					newfd = getConnection(listener);
 					FD_SET(newfd, &master);
-//					FD_SET(newfd, &server_fds);
 					serverFds.insert(newfd);
-					cout << "new connection: " << newfd << endl;
 					if (newfd > fdmax) {
 						fdmax = newfd;
 					}
 				} else {
 					//process data
 					Message recvMsg;
-					if (recvMsg.receiveMessage(i) < SUCCESS) {
+					if (recvMsg.receiveMessage(i) != SUCCESS) {
 						close(i);
-						cout << "removing " << i << endl;
 						FD_CLR(i, &master);
-//						FD_CLR(i, &server_fds);
 						serverFds.erase(i);
 
 					} else {
 						//parse messsage
-						cout << "somthin connected " << endl;
-						cout << "Message" << recvMsg.getMessage() << endl;
 						string reply;
 						int type;
 
 						if (recvMsg.getType() == MSG_REGISTER) { //register
 
-							cout << "register recieved " << endl;
 							string hostStr, portStr, nameStr, argTypeStr;
 							hostStr = strtok(recvMsg.getMessage(), ","); //host
 							portStr = strtok(NULL, ","); //port
+
 							Server *server;
 							Server serverTemp = Server(hostStr, atoi(portStr.c_str()));
+
 							if (servers.count(serverTemp.getIdentifier()) > 0) { //get same server object if exists
-//								delete server;
 								server = servers[server->getIdentifier()];
 							} else { //create a new one, add it to servers as well
-							server = new Server(hostStr, atoi(portStr.c_str()));
+								server = new Server(hostStr, atoi(portStr.c_str()));
 								servers[server->getIdentifier()] = server;
 							}
-							cout << "still alive " << endl;
+
 							nameStr = strtok(NULL, ","); //name
 							argTypeStr = strtok(NULL, ","); //argTypes array
 							string key = getKey(nameStr, argTypeStr);
+
 							if (dataBase.count(key) > 0) { //if exists add to existing vector
 								vector<Server*> *v = dataBase[key];
 								v->push_back(server);
 								dataBase[key] = v;
-
 							} else { //create new vector and insert it
 								vector<Server*> *v = new vector<Server*>;
 								v->push_back(server);
 								dataBase[key] = v;
 							}
 
-							//when does register fail?
 							reply = createCodeMsg(0);
 							type = MSG_REGISTER_SUCCEESS;
 
 						} else if (recvMsg.getType() == MSG_LOC_REQUEST) { //loc_request
-							cout << "location request recieved " << endl;
-//							FD_CLR(i, &server_fds);
 							serverFds.erase(i);
 							string nameStr, argTypeStr;
 							nameStr = strtok(recvMsg.getMessage(), ","); //name
 							argTypeStr = strtok(NULL, ","); //argTypes
 							string key = getKey(nameStr, argTypeStr);
+
 							if (dataBase.count(key) > 0) {
 								//sort list by count
 								vector<Server*> *v = dataBase[key];
@@ -235,45 +210,27 @@ int main() {
 										s->getPort());
 								type = MSG_LOC_SUCCESS;
 							} else {
-								//return fail signature doesnt exist
-								//temp error code
-
 								reply = createCodeMsg(-1);
 								type = MSG_LOC_FAILURE;
 							}
 
 						} else if (recvMsg.getType() == MSG_TERMINATE) {//terminate
 							//kill all servers in db, send terminate to all of them
-							//not sure how to do this...., need another map to track all registerd servers?
-							//or send to all connected?
-							//close all sockets
-//							FD_CLR(i, &server_fds);
+
 							serverFds.erase(i);
-							string dumyMsg = "hi";
-							Message terminate(MSG_TERMINATE, dumyMsg);
+							Message terminate(MSG_TERMINATE);
 
 							int len = strlen(reply.c_str()) + 1;
-							cout << "listener: " << listener << endl;
-							cout << "Servers connected: " << fdmax << endl;
 							for (int j = 0; j <= fdmax; j++) {
-								//sned terminate to all servers
-								cout << j << endl;
+								//send terminate to all servers
 								if (serverFds.find(j) != serverFds.end()) {
 									try {
-										cout << "sending terminate to servers"
-												<< endl;
 										terminate.sendMessage(j);
-										cout << "sent to " << j << endl;
 									} catch (...) {
-										cout << "ignoring error" << endl;
 									}
 								}
 							}
 							terminated = true;
-						} else {
-							//unsporrted message type?
-							cout << "HUH?! " << endl;
-//							reply = createFailureMsg(,-1);
 						}
 						//send data
 						if (!terminated) {
@@ -287,6 +244,4 @@ int main() {
 		}	            				//for loop
 	}	            				//infinite for loop
 
-//delete db?
 }
-

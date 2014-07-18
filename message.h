@@ -41,6 +41,7 @@ class Message {
 		Message();
 		Message(int type, char * message);
 		Message(int type, string message);
+		Message(int type);
 		virtual ~Message();
 
 		int sendMessage(int port);

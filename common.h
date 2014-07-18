@@ -16,6 +16,8 @@
 #include <pthread.h>
 #include <iostream>
 #include <vector>
+#include <sys/socket.h>
+
 
 using namespace std;
 
@@ -30,5 +32,7 @@ float toFloat(string x);
 string getKey(string name, string argTypeStr);
 int * vectorToArray(vector<int> vec);
 void printDEBUG(string s, pthread_mutex_t lock);
+string convertToString(char* c);
+int getConnection(int s);
 
 #endif /* COMMON_H_ */

@@ -4,7 +4,7 @@ run:
 	g++ -c message.h message.cc
 	ar -cvq librpc.a rpc.o message.o common.o
 	ranlib librpc.a 
-	g++ -c binder.cc
+	g++ -c binder.h binder.cc
 	g++ -o binder message.o binder.o common.o
 	
 test:

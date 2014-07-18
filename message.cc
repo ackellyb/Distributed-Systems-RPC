@@ -32,6 +32,12 @@ Message::Message(int type, string message) {
 	this->type = type;
 }
 
+Message::Message(int type) {
+	this->len = 1;
+	this->message = '\0';
+	this->type = type;
+}
+
 
 Message::~Message() {
 	if (message != NULL ) {
@@ -58,9 +64,11 @@ int Message::sendMessage(int port) {
 		return MESSAGE_SEND_ERR;
 	}
 
-	retVal = send(port, this->message, this->len, 0);
-	if (retVal <= 0) {
-		return MESSAGE_SEND_ERR;
+	if (this->len > 1) {
+		retVal = send(port, this->message, this->len, 0);
+		if (retVal <= 0) {
+			return MESSAGE_SEND_ERR;
+		}
 	}
 
 	return SUCCESS;
@@ -86,11 +94,17 @@ int Message::receiveMessage(int port) {
 	}
 	this->type = ntohl(typeT);
 
-	this->message = new char[len];
-	retVal = recv(port, this->message, this->len, 0);
-	if (retVal <= 0) {
-		return MESSAGE_RECEIVE_ERR;
+
+	if (this->len > 1) {
+		this->message = new char[len];
+		retVal = recv(port, this->message, this->len, 0);
+		if (retVal <= 0) {
+			return MESSAGE_RECEIVE_ERR;
+		}
+	} else {
+		this->message = '\0';
 	}
+
 
 	return SUCCESS;
 }

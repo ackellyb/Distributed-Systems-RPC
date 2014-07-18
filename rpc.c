@@ -38,21 +38,6 @@ pthread_mutex_t runningLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t localDbLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t printLock = PTHREAD_MUTEX_INITIALIZER;
 
-string convertToString(char* c) {
-	stringstream ss;
-	string s;
-	ss << c;
-	ss >> s;
-	return s;
-}
-
-int getConnection(int s) {
-	int t;
-	if ((t = accept(s, NULL, NULL )) < 0) { /* accept connection if there is one */
-		return (CANT_CONNECT_SOCKET_ERR);
-	}
-	return (t);
-}
 
 int createSocket(char* addr, char* prt) {
 	char * address;
