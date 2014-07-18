@@ -149,14 +149,19 @@ int rpcRegister(char *name, int *argTypes, skeleton f) {
 //optional but would be cleaner to do...
 //	}
 
-	Message
-	sendMsg(MSG_REGISTER, createRegisterMsg(serverPort, name, argTypes));
+	int retVal = 0;
+	string registerMessage = createRegisterMsg(serverPort, name, argTypes, &retVal);
+	if (retVal == HOST_NOT_FOUND) {
+		close(binderSocket);
+		return HOST_NOT_FOUND;
+	}
+	Message sendMsg(MSG_REGISTER, registerMessage);
 	sendMsg.sendMessage(binderSocket);
 
 	cout << "sent: " << sendMsg.getMessage() << endl;
 	//listen for acknlowedgment
 	Message recvMsg;
-	if(recvMsg.receiveMessage(binderSocket)<=0){
+	if(recvMsg.receiveMessage(binderSocket) < SUCCESS){
 		close(binderSocket);
 		return SOCKET_RECIEVE_ERR;
 	}
@@ -182,7 +187,7 @@ int rpcRegister(char *name, int *argTypes, skeleton f) {
 		//error?
 		return atoi(recvMsg.getMessage());
 	}else{
-		return UNKOWN_MSG_ERR;
+		return UNKNOWN_MSG_ERR;
 	}
 }
 
@@ -473,7 +478,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
 	// recieve msg
 	Message locRecvMsg;
-	if (locRecvMsg.receiveMessage(clientBinderSocket) <= 0) {
+	if (locRecvMsg.receiveMessage(clientBinderSocket) < SUCCESS) {
 		close(clientBinderSocket);
 		return SOCKET_RECIEVE_ERR;
 	}
@@ -496,13 +501,12 @@ int rpcCall(char* name, int* argTypes, void** args) {
 			return SERVER_DOWN_ERR;
 		}
 
-		Message
-		serverExecuteMsg(MSG_EXECUTE, createExecuteMsg(name, argTypes, args, false));
+		Message serverExecuteMsg(MSG_EXECUTE, createExecuteRequestMsg(name, argTypes, args));
 		serverExecuteMsg.sendMessage(serverSocket);
 
 		cout << "sent message: "<<serverExecuteMsg.getMessage() << endl;
 		Message serverReceivedMsg;
-		if(serverReceivedMsg.receiveMessage(serverSocket) <=0){
+		if(serverReceivedMsg.receiveMessage(serverSocket) < SUCCESS){
 			close(serverSocket);
 			return SOCKET_RECIEVE_ERR;
 		}
@@ -544,7 +548,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	} else {
 		//huh?
 		cout << "msg_ huh" << endl;
-		return UNKOWN_MSG_ERR;
+		return UNKNOWN_MSG_ERR;
 	}
 //MADE IT
 	return SUCCESS;
@@ -602,7 +606,7 @@ void *executeThread(void* tArg) {
 			char * cstr = new
 			char[name.length()+1];
 			strcpy(cstr, name.c_str());
-			skelMsg = createExecuteMsg(cstr, argTypes, argArray, true);
+			skelMsg = createExecuteSuccessMsg(cstr, argTypes, argArray);
 			printDEBUG(skelMsg);
 			type = MSG_EXECUTE_SUCCESS;
 		delete[] cstr;
@@ -665,7 +669,7 @@ while (true) {
 				if (clientSocket > 0) {
 					Message *executeMsg = new
 					Message();
-					if(executeMsg->receiveMessage(clientSocket) <= 0){
+					if(executeMsg->receiveMessage(clientSocket) < SUCCESS){
 						close(clientSocket);
 						return SOCKET_RECIEVE_ERR;
 					}
@@ -692,7 +696,7 @@ while (true) {
 			} else {
 				//listen for terminate message
 				Message recvMsg;
-				if (recvMsg.receiveMessage(i) <= 0) {	//binder went down?
+				if (recvMsg.receiveMessage(i) < SUCCESS) {	//binder went down?
 					close(i);
 					cout << "removing" << endl;
 					FD_CLR(i, &master);

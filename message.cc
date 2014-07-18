@@ -7,12 +7,15 @@
 #include "message.h"
 #include "rpc.h"
 #include "common.h"
+#include "err.h"
 
 
 Message::Message() {
 	this->message = NULL;
 }
 
+
+//Constructor with c style character
 Message::Message(int type, char * message) {
 	this->type = type;
 	this->len = strlen(message) + 1;
@@ -20,6 +23,8 @@ Message::Message(int type, char * message) {
 	strcpy(this->message, message);
 }
 
+
+//Constructor with c++ string
 Message::Message(int type, string message) {
 	this->len = message.length() + 1;
 	this->message = new char[this->len];
@@ -27,84 +32,96 @@ Message::Message(int type, string message) {
 	this->type = type;
 }
 
+
 Message::~Message() {
 	if (message != NULL ) {
 		delete[] message;
 	}
 }
 
-void Message::sendMessage(int port) {
+
+// Sends the message to the port specified in the input
+// Sends length first, then type, followed by the message contents
+// Returns 0 if successful
+// Returns MESSAGE_SEND_ERR if there is an error with sending any of the objects
+int Message::sendMessage(int port) {
 	int32_t lenT = htonl(this->len);
 	int32_t typeT = htonl(this->type);
-	send(port, &lenT, sizeof(int32_t), 0);
-	send(port, &typeT, sizeof(int32_t), 0);
-	send(port, this->message, this->len, 0);
+
+	int retVal = send(port, &lenT, sizeof(int32_t), 0);
+	if (retVal <= 0) {
+		return MESSAGE_SEND_ERR;
+	}
+
+	retVal = send(port, &typeT, sizeof(int32_t), 0);
+	if (retVal <= 0) {
+		return MESSAGE_SEND_ERR;
+	}
+
+	retVal = send(port, this->message, this->len, 0);
+	if (retVal <= 0) {
+		return MESSAGE_SEND_ERR;
+	}
+
+	return SUCCESS;
 }
 
+// Receives the message from the specified port, and populates the message object
+// Receives length first, then type, then the message
+// Returns 0 if successful
+// Returns MESSAGE_RECEIVE_ERR if any object was not able to be received
 int Message::receiveMessage(int port) {
 	int32_t lenT = 0;
 	int32_t typeT = 0;
 
 	int retVal = recv(port, &lenT, sizeof(int32_t), 0);
 	if (retVal <= 0) {
-		return retVal;
+		return MESSAGE_RECEIVE_ERR;
 	}
 	this->len = ntohl(lenT);
 
 	retVal = recv(port, &typeT, sizeof(int32_t), 0);
 	if (retVal <= 0) {
-		return retVal;
+		return MESSAGE_RECEIVE_ERR;
 	}
 	this->type = ntohl(typeT);
 
 	this->message = new char[len];
 	retVal = recv(port, this->message, this->len, 0);
-	return retVal;
+	if (retVal <= 0) {
+		return MESSAGE_RECEIVE_ERR;
+	}
+
+	return SUCCESS;
 }
+
 
 int Message::getType() {
 	return this->type;
 }
 
-string Message::getTypeString() {
-	switch (this->type) {
-	case MSG_REGISTER:
-		return "Register";
-	case MSG_REGISTER_SUCCEESS:
-		return "Register Success";
-	case MSG_REGISTER_FAILURE:
-		return "Register failure";
-	case MSG_LOC_REQUEST:
-		return "Location request";
-	case MSG_LOC_SUCCESS:
-		return "Location success";
-	case MSG_LOC_FAILURE:
-		return "Location failure";
-	case MSG_EXECUTE:
-		return "Execute";
-	case MSG_EXECUTE_SUCCESS:
-		return "Execute success";
-	case MSG_EXECUTE_FAILURE:
-		return "Execute failure";
-	case MSG_TERMINATE:
-		return "Terminate";
-	default:
-		return "Message type is not known";
-	}
-}
 
 int Message::getLength() {
 	return this->len;
 }
+
+
 char * Message::getMessage() {
 	return this->message;
 }
 
-//commas separate args, # separates array elements
-//length, msgCode, hostname, port, name, argTypes
-string createRegisterMsg(int port, char *name, int *argTypes) {
+
+
+// Creates the message string for Register messages [address, port, name, argTypes]
+// Returns the created string
+// returnVal is set to HOST_NOT_FOUND if the host address is not found
+string createRegisterMsg(int port, char *name, int *argTypes, int * returnVal) {
 	char address[256];
-	gethostname(address, 256);
+	returnVal = new int(0);
+	int retVal = gethostname(address, 256);
+	if (retVal != 0) {
+		returnVal =  new int(HOST_NOT_FOUND);
+	}
 	stringstream ss;
 	ss << address << "," << port << "," << name << ",";
 	int i = 0;
@@ -116,14 +133,18 @@ string createRegisterMsg(int port, char *name, int *argTypes) {
 	return ss.str();
 }
 
+
+// Creates a simple message string, where the only thing in the message is a code [errNo]
+// Returns the code message
 string createCodeMsg(int code) {
 	stringstream ss;
 	ss << code;
 	return ss.str();
 }
 
-//not sure when this will be used
 
+// Creates a location request message [name, argTypes]
+// Returns the string
 string createLocRequestMsg(char *name, int *argTypes) {
 	stringstream ss;
 	ss << name << ",";
@@ -136,16 +157,25 @@ string createLocRequestMsg(char *name, int *argTypes) {
 	return ss.str();
 }
 
+
+// Creates a location request success message [host, port]
+// Returns the message
 string createLocSuccessMsg(string host, int port) {
 	stringstream ss;
 	ss << host << "," << port;
 	return ss.str();
 }
 
-string createExecuteMsg(char *name, int *argTypes, void** args,
-		bool isSuccessMessage) { //args
+
+// Creates an execute message request and execute success message string [name, argTypes, args]
+// If the message is a success message, isSuccessMessage is true. Any output variables are correctly parsed
+// If the message is not a success message, output variables are set in the message to say "output". This stops reads from unallocated memory
+// Returns a string
+string createExecuteMsg(char *name, int *argTypes, void** args, bool isSuccessMessage) {
 	stringstream ss;
 	ss << name << ",";
+
+	//Calculate length, and parse argTypes into stringstream
 	int lengthArray = 0;
 	while (argTypes[lengthArray] != 0) {
 		ss << argTypes[lengthArray] << "#";
@@ -153,6 +183,8 @@ string createExecuteMsg(char *name, int *argTypes, void** args,
 	}
 	ss << argTypes[lengthArray] << "#";
 	ss << ",";
+
+	//Parse args into stringstream
 	for (int i = 0; i < lengthArray; i++) {
 		int type = argTypes[i];
 		int ptype = getpType(type);
@@ -166,9 +198,8 @@ string createExecuteMsg(char *name, int *argTypes, void** args,
 			if (ptype == ARG_CHAR) { //char
 				char * array = (char*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
-						ss << (int)array[j] << ";";
+					ss << (int)array[j] << ";";
 				}
-
 			} else if (ptype == ARG_SHORT) { //short
 				short * array = (short*) args[i];
 				for (int j = 0; j < arrayLen; j++) {
@@ -198,10 +229,10 @@ string createExecuteMsg(char *name, int *argTypes, void** args,
 					ss << flToHex((float) array[j]) << ";";
 				}
 			} else {
-				ss << "NULL" << ";";
+				ss << "NULL";
 			}
 			ss << "#";
-		} else {
+		} else { //scalar variable
 			if (ptype == ARG_DOUBLE) {
 				double * arg = (double *) args[i];
 				string msg = dToHex(*arg);
@@ -231,3 +262,10 @@ string createExecuteMsg(char *name, int *argTypes, void** args,
 	return ss.str();
 }
 
+string createExecuteSuccessMsg(char * name, int * argTypes, void ** args) {
+	return createExecuteMsg(name, argTypes, args, true);
+}
+
+string createExecuteRequestMsg(char * name, int * argTypes, void ** args) {
+	return createExecuteMsg(name, argTypes, args, false);
+}

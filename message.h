@@ -43,18 +43,18 @@ class Message {
 		Message(int type, string message);
 		virtual ~Message();
 
-		void sendMessage(int port);
+		int sendMessage(int port);
 		int receiveMessage(int port);
 		int getType();
-		string getTypeString();
 		char * getMessage();
 		int getLength();
 };
 
-string createRegisterMsg(int port, char *name, int *argTypes);
+string createRegisterMsg(int port, char *name, int *argTypes, int* retVal);
 string createLocRequestMsg(char *name, int *argTypes);
 string createLocSuccessMsg(string host, int port);
-string createExecuteMsg(char *name, int *argTypes, void** args, bool isSuccessMessage);
+string createExecuteRequestMsg(char *name, int *argTypes, void** args);
+string createExecuteSuccessMsg(char * name, int * argTypes, void ** args);
 string createCodeMsg(int code);
 
 

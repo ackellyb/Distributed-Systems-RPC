@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "message.h"
 #include "common.h"
+#include "err.h"
 #include <stdlib.h>
 #include <sstream>
 #include <sys/types.h>
@@ -166,7 +167,7 @@ int main() {
 				} else {
 					//process data
 					Message recvMsg;
-					if (recvMsg.receiveMessage(i) <= 0) {
+					if (recvMsg.receiveMessage(i) < SUCCESS) {
 						close(i);
 						cout << "removing " << i << endl;
 						FD_CLR(i, &master);
@@ -179,8 +180,6 @@ int main() {
 						cout << "Message" << recvMsg.getMessage() << endl;
 						string reply;
 						int type;
-						cout << recvMsg.getType() << " "
-								<< recvMsg.getTypeString() << endl;
 
 						if (recvMsg.getType() == MSG_REGISTER) { //register
 
