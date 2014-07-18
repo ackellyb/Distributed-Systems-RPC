@@ -26,7 +26,6 @@
 
 #define MAX_CONNECTIONS 100
 #define HOST_NAME_SIZE 256
-int MAX_SIZE = 2 ^ 32 - 1;
 
 int binderSocket = -1;
 int clientListenerSocket = -1;
@@ -50,7 +49,7 @@ string convertToString(char* c) {
 int getConnection(int s) {
 	int t;
 	if ((t = accept(s, NULL, NULL )) < 0) { /* accept connection if there is one */
-		return (-1);
+		return (CANT_CONNECT_SOCKET_ERR);
 	}
 	return (t);
 }
@@ -58,7 +57,7 @@ int getConnection(int s) {
 int createSocket(char* addr, char* prt) {
 	char * address;
 	char * port;
-	if (addr == NULL ) {
+	if (addr == NULL ) {//if no address specified get fron environment
 		address = getenv("BINDER_ADDRESS");
 		port = getenv("BINDER_PORT");
 	} else {
@@ -69,12 +68,12 @@ int createSocket(char* addr, char* prt) {
 	int retVal;
 
 	if (address == NULL || port == NULL ) {
-		return -1;
+		return CANT_CREATE_SOCKET_ERR;
 	}
 	//Connecting to binder
-	int cBinderSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (cBinderSocket == -1) {
-		return -1;
+	int soc = socket(AF_INET, SOCK_STREAM, 0);
+	if (soc < 0) {
+		return CANT_CREATE_SOCKET_ERR;
 	}
 
 	struct addrinfo hints, *res;
@@ -82,11 +81,11 @@ int createSocket(char* addr, char* prt) {
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	getaddrinfo(address, port, &hints, &res);
-	retVal = connect(cBinderSocket, res->ai_addr, res->ai_addrlen);
-	if (retVal == -1) {
-		return -1;
+	retVal = connect(soc, res->ai_addr, res->ai_addrlen);
+	if (retVal < 0) {
+		return CANT_CONNECT_SOCKET_ERR;
 	}
-	return cBinderSocket;
+	return soc;
 }
 
 //Server Function
@@ -98,14 +97,14 @@ int rpcInit() {
 	cout << "init called" << endl;
 	//Connecting to binder
 	binderSocket = createSocket(address, port);
-	if (binderSocket <= 0) {
-		return -1;
+	if (binderSocket < 0) {
+		return binderSocket;
 	}
 
 	//Opening connection for clients
 	clientListenerSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (clientListenerSocket == -1) {
-		return -1;
+	if (clientListenerSocket < 0) {
+		return CANT_CREATE_SOCKET_ERR;
 	}
 
 	struct sockaddr_in sockAddress;
@@ -114,12 +113,12 @@ int rpcInit() {
 	sockAddress.sin_port = htons(0);
 	retVal = bind(clientListenerSocket, (struct sockaddr *) &sockAddress,
 			sizeof(sockAddress));
-	if (retVal == -1) {
-		return -1;
+	if (retVal <0) {
+		return SOCKET_ERR;
 	}
 	retVal = listen(clientListenerSocket, MAX_CONNECTIONS);
 	if (retVal == -1) {
-		return -1;
+		return SOCKET_ERR;
 	}
 
 	struct sockaddr_in sin;
@@ -128,7 +127,7 @@ int rpcInit() {
 			(socklen_t*) &addrlen);
 	serverPort = ntohs(sin.sin_port);
 	if (serverPort <= 0) {
-		return -1;
+		return SOCKET_ERR;
 	}
 
 	cout << "init done" << endl;
@@ -138,7 +137,7 @@ int rpcInit() {
 int rpcRegister(char *name, int *argTypes, skeleton f) {
 	//insert into local db
 	if (binderSocket < 0) {
-		return -1;
+		return SOCKET_ERR;
 	}
 	stringstream ss;
 	ss << name;
@@ -155,7 +154,10 @@ int rpcRegister(char *name, int *argTypes, skeleton f) {
 	cout << "sent: " << sendMsg.getMessage() << endl;
 	//listen for acknlowedgment
 	Message recvMsg;
-	recvMsg.receiveMessage(binderSocket);
+	if(recvMsg.receiveMessage(binderSocket)<=0){
+		close(binderSocket);
+		return SOCKET_RECIEVE_ERR;
+	}
 	cout << "got reply" << recvMsg.getMessage() << endl;
 
 	if (recvMsg.getType() == MSG_REGISTER_SUCCEESS) {
@@ -174,9 +176,11 @@ int rpcRegister(char *name, int *argTypes, skeleton f) {
 		localDb[key] = f;
 		pthread_mutex_unlock(&localDbLock);
 		return SUCCESS;
-	} else {
+	} else if(recvMsg.getType() == MSG_REGISTER_FAILURE){
 		//error?
 		return atoi(recvMsg.getMessage());
+	}else{
+		return UNKOWN_MSG_ERR;
 	}
 }
 
@@ -457,7 +461,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	cout << "rpcCall" << endl;
 	int clientBinderSocket = createSocket(NULL, NULL );
 	if (clientBinderSocket < 0) {
-		return -1;
+		return clientBinderSocket;
 	}
 //loc_request to binder
 	Message
@@ -468,7 +472,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	Message locRecvMsg;
 	if (locRecvMsg.receiveMessage(clientBinderSocket) <= 0) {
 		close(clientBinderSocket);
-		return -1;
+		return SOCKET_RECIEVE_ERR;
 	}
 	close(clientBinderSocket);
 
@@ -486,7 +490,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 		} else { //server is not up
 			cout << "server down" << endl;
 			close(serverSocket);
-			return -1;
+			return SERVER_DOWN_ERR;
 		}
 
 		Message
@@ -495,7 +499,10 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
 		cout << "sent message: "<<serverExecuteMsg.getMessage() << endl;
 		Message serverReceivedMsg;
-		serverReceivedMsg.receiveMessage(serverSocket);
+		if(serverReceivedMsg.receiveMessage(serverSocket) <=0){
+			close(serverSocket);
+			return SOCKET_RECIEVE_ERR;
+		}
 		close(serverSocket);
 		if (serverReceivedMsg.getType() == MSG_EXECUTE_SUCCESS) {
 			stringstream
@@ -506,7 +513,6 @@ int rpcCall(char* name, int* argTypes, void** args) {
 			getline(ss, argStr);
 
 			vector<int> argTypesVec = parseArgTypes(argTypeStr);
-//			argTypes = vectorToArray(argTypesVec);
 			int length = argTypesVec.size() - 1;
 
 			printDEBUG("what comes next are the variables");
@@ -521,11 +527,11 @@ int rpcCall(char* name, int* argTypes, void** args) {
 			deleteArgValues(argTypes, length, newArgs);
 			cout << "msg_EXECUTE_SUCCESS" << endl;
 
-			return 0;
+			return SUCCESS;
 		} else {
 			cout << "msg_EXECUTE_FAILURE" << endl;
-//			char * errorCode = serverReceivedMsg.getMessage();
-			return -1;
+			string errorCode = serverReceivedMsg.getMessage();
+			return atoi(errorCode.c_str());
 		}
 
 	} else if (locRecvMsg.getType() == MSG_LOC_FAILURE) { //errored
@@ -535,7 +541,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 	} else {
 		//huh?
 		cout << "msg_ huh" << endl;
-		return -1;
+		return UNKOWN_MSG_ERR;
 	}
 //MADE IT
 	return SUCCESS;
@@ -597,20 +603,20 @@ void *executeThread(void* tArg) {
 			printDEBUG(skelMsg);
 			type = MSG_EXECUTE_SUCCESS;
 		delete[] cstr;
-	} else {
-		skelMsg = createCodeMsg(retVal);
-		type = MSG_EXECUTE_FAILURE;
-	}
+		} else {
+			skelMsg = createCodeMsg(SKELETON_EXECUTE_FAIL);
+			type = MSG_EXECUTE_FAILURE;
+		}
 	Message executeSkel( type, skelMsg);
 	executeSkel.sendMessage(cSocket);
 	deleteArgValues(argTypes, length, argArray);
-} else {
-	printDEBUG("shit");
-	string skelMsg = createCodeMsg(-1);
-	Message
-	executeFail(MSG_EXECUTE_FAILURE, skelMsg);
-	executeFail.sendMessage(cSocket);
-}
+	} else {
+		printDEBUG("shit");
+		string skelMsg = createCodeMsg(SKELETON_NOT_FOUND_ERR);
+		Message
+		executeFail(MSG_EXECUTE_FAILURE, skelMsg);
+		executeFail.sendMessage(cSocket);
+	}
 
 //run skeleton and reply to client using cSocket
 delete msg;
@@ -627,7 +633,7 @@ cout << "rpcExecute" << endl;
 //needs to listen to bindersocket for terminate....use select between listner and binder sock?
 
 if (localDb.empty()) {
-	return -1;
+	return NOTHING_REGISTERED_ERR;
 }
 fd_set master;
 fd_set read_fds;
@@ -654,7 +660,10 @@ while (true) {
 				if (clientSocket > 0) {
 					Message *executeMsg = new
 					Message();
-					executeMsg->receiveMessage(clientSocket);
+					if(executeMsg->receiveMessage(clientSocket) <= 0){
+						close(clientSocket);
+						return SOCKET_RECIEVE_ERR;
+					}
 
 					if (executeMsg->getType() == MSG_EXECUTE) {
 						cout << "execute recieved" << endl;

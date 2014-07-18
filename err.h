@@ -10,6 +10,19 @@
 
 #define SUCCESS 0
 
+#define CANT_CREATE_SOCKET_ERR 	-1
+#define CANT_CONNECT_SOCKET_ERR -2
+#define SOCKET_ERR -3
+#define SOCKET_RECIEVE_ERR -4
+
+#define SERVER_DOWN_ERR -5
+#define SKELETON_EXECUTE_FAIL -6
+#define SKELETON_NOT_FOUND_ERR -7
+#define UNKOWN_MSG_ERR -8
+
+#define NOTHING_REGISTERED_ERR -9
+
+
 
 
 #endif /* ERR_H_ */
