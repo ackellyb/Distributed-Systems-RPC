@@ -268,11 +268,11 @@ int rpcInit() {
 	retVal = bind(clientListenerSocket, (struct sockaddr *) &sockAddress,
 			sizeof(sockAddress));
 	if (retVal <0) {
-		return SOCKET_ERR;
+		return BIND_ERR;
 	}
 	retVal = listen(clientListenerSocket, MAX_CONNECTIONS);
 	if (retVal == -1) {
-		return SOCKET_ERR;
+		return LISTEN_ERR;
 	}
 
 	struct sockaddr_in sin;

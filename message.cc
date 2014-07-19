@@ -131,10 +131,10 @@ char * Message::getMessage() {
 // returnVal is set to HOST_NOT_FOUND if the host address is not found
 string createRegisterMsg(int port, char *name, int *argTypes, int * returnVal) {
 	char address[256];
-	returnVal = new int(0);
+	*returnVal = 0;
 	int retVal = gethostname(address, 256);
 	if (retVal != 0) {
-		returnVal =  new int(HOST_NOT_FOUND_ERR);
+		*returnVal =  HOST_NOT_FOUND_ERR;
 	}
 	stringstream ss;
 	ss << address << "," << port << "," << name << ",";

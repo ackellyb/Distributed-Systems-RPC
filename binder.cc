@@ -109,7 +109,7 @@ int main() {
 
 	retVal = listen(listener, MAXNUMBER);
 	if(retVal != SUCCESS) {
-		return SOCKET_ERR;
+		return LISTEN_ERR;
 	}
 
 	map<string, vector<Server*> *> dataBase;
@@ -210,7 +210,7 @@ int main() {
 										s->getPort());
 								type = MSG_LOC_SUCCESS;
 							} else {
-								reply = createCodeMsg(-1);
+								reply = createCodeMsg(FUNCTION_NOT_FOUND);
 								type = MSG_LOC_FAILURE;
 							}
 
